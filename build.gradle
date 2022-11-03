@@ -3,34 +3,26 @@ apply plugin: 'com.github.dcendents.android-maven'
 group = 'com.github.ecenllen'
 
 android {
-    compileSdkVersion = 29
-    buildToolsVersion = "29.0.3"
+    compileSdkVersion 29
+    buildToolsVersion '29.0.2'
 
     defaultConfig {
-        minSdkVersion 17
+        minSdkVersion 16
         targetSdkVersion 29
         versionCode 1
         versionName "1.0"
+
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
 
     }
-    aaptOptions {
-        cruncherEnabled = false
-        useNewCruncher = false
-    }
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-        }
 
-    }
-}
-
-allprojects {
     repositories {
-        maven { url 'https://artifact.bytedance.com/repository/pangle' }
+        flatDir {
+            dirs 'libs'
+        }
     }
+
+
 }
 
 buildscript {
@@ -38,7 +30,6 @@ buildscript {
         jcenter()
         mavenCentral()
         google()
-        maven { url 'https://repo1.maven.org/maven2/' }
     }
 
     dependencies {
@@ -49,7 +40,6 @@ buildscript {
         repositories {
             jcenter()
             maven { url 'https://jitpack.io' }
-            maven { url 'https://repo1.maven.org/maven2/' }
             google()
             flatDir {
                 dirs 'libs'
