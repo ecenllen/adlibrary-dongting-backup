@@ -1,7 +1,6 @@
 apply plugin: 'com.android.library'
 apply plugin: 'com.github.dcendents.android-maven'
-apply plugin: 'maven-publish'
-apply plugin: 'maven'
+group = 'com.github.ecenllen'
 
 android {
     compileSdkVersion = 29

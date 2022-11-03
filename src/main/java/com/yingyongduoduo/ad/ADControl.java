@@ -1134,8 +1134,9 @@ public class ADControl {
     }
 
     public void destroyView() {
-        if (interAd != null && interAd.isValid()) {
-            interAd.close();
+        if (interAd != null) {
+            if (interAd.isValid())
+                interAd.close();
             interAd.destroy();
             interAd = null;
         }
