@@ -64,7 +64,7 @@ dependencies {
     api 'com.squareup.retrofit2:converter-gson:2.9.0'
 
     // 广点通
-    implementation 'com.qq.e.union:union:4.492.1362'
+    api 'com.qq.e.union:union:4.492.1362'
 
     // 下面各SDK根据宿主App是否使用相关业务按需引入。
     // OAID目前为目前国内市场主流的Android Q设备标识，可根据需要选择。
