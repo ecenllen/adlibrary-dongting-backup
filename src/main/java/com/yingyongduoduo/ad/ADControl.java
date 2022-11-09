@@ -897,12 +897,6 @@ public class ADControl {
 
                 @Override
                 public void onADReceiv(ADBean adBean) {
-//                    if (adBean != null && !TextUtils.isEmpty(adBean.getAd_name())) {
-//                        Map<String, String> map_ekv = new HashMap<String, String>();
-//                        map_ekv.put("show", adBean.getAd_name());
-//                        MobclickAgent.onEvent(context, "banner_count", map_ekv);
-//                        System.out.println("广告被展示:"+adBean.getAd_name());
-//                    }
                 }
             });
             if (lyt != null)

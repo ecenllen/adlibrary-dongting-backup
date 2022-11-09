@@ -1,5 +1,7 @@
 package com.yingyongduoduo.ad.utils;
 
+import static android.os.Build.VERSION.SDK_INT;
+
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.content.Context;
@@ -21,8 +23,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
-
-import static android.os.Build.VERSION.SDK_INT;
 
 /**
  * Created by AA on 2017/3/24.
