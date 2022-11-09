@@ -4,11 +4,8 @@ import static com.bytedance.sdk.openadsdk.TTAdLoadType.LOAD;
 import static com.bytedance.sdk.openadsdk.TTAdLoadType.PRELOAD;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
@@ -47,6 +44,7 @@ import com.qq.e.ads.splash.SplashADListener;
 import com.qq.e.comm.util.AdError;
 import com.yingyongduoduo.ad.bean.ADBean;
 import com.yingyongduoduo.ad.config.AppConfig;
+import com.yingyongduoduo.ad.dialog.DialogTextViewBuilder;
 import com.yingyongduoduo.ad.dialog.GDTMuBanTuiPingDialog;
 import com.yingyongduoduo.ad.dialog.SelfCPDialog;
 import com.yingyongduoduo.ad.dialog.SelfTuiPingDialog;
@@ -1372,24 +1370,21 @@ public class ADControl {
         lastshowHaopingTime = System.currentTimeMillis();
         isonshow = true;
 
-        new AlertDialog.Builder(context).setTitle("意见或建议")
-                .setMessage("\t\t大家对本软件有意见或建议，欢迎通过评论区给我们留言，我们会根据你的要求进行改进，谢谢！")
-                .setPositiveButton("给个好评", new OnClickListener() {
-
+        new DialogTextViewBuilder.Builder(context, "意见或建议", "\t\t大家对本软件有任何意见或建议，欢迎通过评论区给我们留言，我们会根据你的要求进行改进，谢谢！", "给个好评")
+                .twoButton("以后再说")
+                .listener(new DialogTextViewBuilder.DialogOnClickListener() {
                     @Override
-                    public void onClick(DialogInterface dialog, int which) {
+                    public void oneClick() {
                         setISGiveHaoping(context, true);
                         goodPinglun(context);
                         isonshow = false;
                     }
-                }).setNegativeButton("以后再说", new OnClickListener() {
 
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                isonshow = false;
-            }
-        }).setCancelable(false).show();
-
+                    @Override
+                    public void twoClick() {
+                        isonshow = false;
+                    }
+                }).build(false);
 
     }
 

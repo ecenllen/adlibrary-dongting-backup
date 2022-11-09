@@ -3,19 +3,20 @@
     xmlns:fresco="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:background="@drawable/oval_dialog_background"
     android:orientation="vertical"
     android:theme="@style/ad_prefix_dialog">
-    <TextView
 
+    <TextView
         android:id="@+id/tvMsg"
         android:layout_width="match_parent"
         android:layout_height="100dp"
         android:background="@color/ad_prefix_white"
-        android:textColor="@color/ad_prefix_black"
-        android:visibility="gone"
         android:gravity="center"
         android:text="您确定要退出本软件？"
-        android:textSize="18sp" />
+        android:textColor="@color/ad_prefix_black"
+        android:textSize="18sp"
+        android:visibility="visible" />
 
     <RelativeLayout
         android:id="@+id/rl_content"
@@ -23,20 +24,21 @@
         android:layout_height="match_parent"
         android:theme="@style/ad_prefix_dialog">
 
-
         <ImageView
             android:id="@+id/my_image_view"
             android:layout_width="300dp"
             android:layout_height="300dp"
-            android:scaleType="fitXY" />
+            android:scaleType="fitXY"
+            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/ad_close"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignRight="@+id/my_image_view"
             android:layout_alignTop="@+id/my_image_view"
-            android:background="@mipmap/ad_prefix_selfad_close" />
+            android:layout_alignRight="@+id/my_image_view"
+            android:background="@mipmap/ad_prefix_selfad_close"
+            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/ad_log"
@@ -44,50 +46,50 @@
             android:layout_height="wrap_content"
             android:layout_alignLeft="@+id/my_image_view"
             android:layout_alignTop="@+id/my_image_view"
-            android:background="@mipmap/ad_prefix_ad_log" />
+            android:background="@mipmap/ad_prefix_ad_log"
+            android:visibility="gone" />
 
         <View
             android:id="@+id/selectLine"
             android:layout_width="match_parent"
             android:layout_height="1dip"
-            android:layout_alignRight="@+id/my_image_view"
             android:layout_below="@+id/my_image_view"
+            android:layout_alignRight="@+id/my_image_view"
             android:layout_gravity="center_horizontal"
-            android:background="#66CCFF" />
+            android:background="#EEEEEE" />
     </RelativeLayout>
 
     <LinearLayout
         android:id="@+id/lyt_bottom"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:background="@color/ad_prefix_white"
-        >
+        android:background="@color/ad_prefix_white">
 
         <Button
             android:id="@+id/bt_quit"
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_weight="1"
-            android:text="退出"
-            android:background="@color/ad_prefix_white"
+            android:background="@drawable/white_selector"
             android:gravity="center"
-            android:textColor="@color/ad_prefix_black"/>
+            android:text="退出"
+            android:textColor="@color/ad_prefix_black" />
 
         <View
             android:layout_width="1dip"
             android:layout_height="match_parent"
             android:layout_gravity="center_horizontal"
-            android:background="#66CCFF" />
+            android:background="#EEEEEE" />
 
         <Button
             android:id="@+id/bt_look"
-            android:background="@color/ad_prefix_white"
             android:layout_width="0dp"
             android:layout_height="50dp"
             android:layout_weight="1"
-            android:textColor="@color/ad_prefix_black"
+            android:background="@drawable/white_selector"
             android:gravity="center"
-            android:text="去看看" />
+            android:text="去看看"
+            android:textColor="@color/ad_prefix_black" />
     </LinearLayout>
 
 

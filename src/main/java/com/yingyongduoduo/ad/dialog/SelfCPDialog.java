@@ -45,15 +45,20 @@ public class SelfCPDialog extends Dialog {
         setContentView(view);
         setCanceledOnTouchOutside(false);
         setCancelable(false);
+        my_image_view = view.findViewById(R.id.my_image_view);
+        rl_content = view.findViewById(R.id.rl_content);
+        ad_close = view.findViewById(R.id.ad_close);
+    }
+
+    @Override
+    public void onAttachedToWindow() {
+        super.onAttachedToWindow();
         if (bean == null) {
             setCanceledOnTouchOutside(true);
             setCancelable(true);
             this.dismiss(); // 这个关闭没效果的
-//            return;// 把return 去掉，不然点击X不能关闭
+            return;//
         }
-        my_image_view = view.findViewById(R.id.my_image_view);
-        rl_content = view.findViewById(R.id.rl_content);
-        ad_close = view.findViewById(R.id.ad_close);
         rl_content.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
