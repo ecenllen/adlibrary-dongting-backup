@@ -24,6 +24,7 @@ public class PublicConfigBean {
     public String mar3dserver = "";  //
     public String mar3ddomain = "";  //
     public String regionurl = "";  //
+    public String rootContent = "";  //
 
     //引擎
     public String zhikouling="";

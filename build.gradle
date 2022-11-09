@@ -7,7 +7,7 @@ android {
     buildToolsVersion '29.0.2'
 
     defaultConfig {
-        minSdkVersion 16
+        minSdkVersion 17
         targetSdkVersion 29
         versionCode 1
         versionName "1.0"
@@ -30,6 +30,7 @@ buildscript {
         jcenter()
         mavenCentral()
         google()
+        maven { url 'https://repo1.maven.org/maven2/' }
     }
 
     dependencies {
@@ -40,6 +41,8 @@ buildscript {
         repositories {
             jcenter()
             maven { url 'https://jitpack.io' }
+            maven { url 'https://repo1.maven.org/maven2/' }
+            maven { url 'https://artifact.bytedance.com/repository/pangle' }
             google()
             flatDir {
                 dirs 'libs'
@@ -60,17 +63,20 @@ dependencies {
     api 'com.squareup.retrofit2:adapter-rxjava:2.4.0'
     api 'com.squareup.retrofit2:converter-gson:2.9.0'
 
+    // 广点通
+    implementation 'com.qq.e.union:union:4.492.1362'
+
     // 下面各SDK根据宿主App是否使用相关业务按需引入。
     // OAID目前为目前国内市场主流的Android Q设备标识，可根据需要选择。
     // 友盟统计SDK
-    api  'com.umeng.umsdk:common:9.5.2' // (必选)版本号
+    api 'com.umeng.umsdk:common:9.5.2' // (必选)版本号
 //    implementation  'com.umeng.umsdk:game:9.x.x+G' // 游戏统计SDK依赖(可选)
-    api  'com.umeng.umsdk:asms:1.6.3' // asms包依赖(必选)
+    api 'com.umeng.umsdk:asms:1.6.3' // asms包依赖(必选)
 //    api 'com.umeng.umsdk:crash:0.0.4' // native crash包依赖(必选)
 
     // androidX 用最新 4.11.0, 不然使用4.8.0
     api "com.github.bumptech.glide:glide:4.8.0"
-    api ("com.github.bumptech.glide:recyclerview-integration:4.8.0") {
+    api("com.github.bumptech.glide:recyclerview-integration:4.8.0") {
         // Excludes the support library because it's already included by Glide.
         transitive = false
     }

@@ -1,5 +1,6 @@
 package com.yingyongduoduo.ad;
 
+import static com.bytedance.sdk.openadsdk.TTAdLoadType.LOAD;
 import static com.bytedance.sdk.openadsdk.TTAdLoadType.PRELOAD;
 
 import android.app.Activity;
@@ -15,6 +16,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Point;
 import android.net.Uri;
+import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -32,10 +34,14 @@ import com.bytedance.sdk.openadsdk.TTAdNative;
 import com.bytedance.sdk.openadsdk.TTAppDownloadListener;
 import com.bytedance.sdk.openadsdk.TTFullScreenVideoAd;
 import com.bytedance.sdk.openadsdk.TTNativeExpressAd;
+import com.bytedance.sdk.openadsdk.TTRewardVideoAd;
 import com.qq.e.ads.banner2.UnifiedBannerADListener;
 import com.qq.e.ads.banner2.UnifiedBannerView;
+import com.qq.e.ads.cfg.VideoOption;
 import com.qq.e.ads.interstitial2.UnifiedInterstitialAD;
 import com.qq.e.ads.interstitial2.UnifiedInterstitialADListener;
+import com.qq.e.ads.rewardvideo.RewardVideoAD;
+import com.qq.e.ads.rewardvideo.RewardVideoADListener;
 import com.qq.e.ads.splash.SplashAD;
 import com.qq.e.ads.splash.SplashADListener;
 import com.qq.e.comm.util.AdError;
@@ -54,6 +60,8 @@ import com.yingyongduoduo.ad.utils.ScreenUtils;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 
 public class ADControl {
@@ -69,7 +77,7 @@ public class ADControl {
     //展示5分好评广告，首次进来不展示，和插屏广告戳开，隔间10秒
     private static long divideTime = 8L * 1000L;
     private static long showadTimeDuration = 120 * 1000;
-    private long lastshowHaopingTime = System.currentTimeMillis();
+    private static long lastshowHaopingTime = System.currentTimeMillis();
 
     public static String oldADVersition = "";
 
@@ -100,7 +108,24 @@ public class ADControl {
             @Override
             public void onSplashLoadFail(CSJAdError csjAdError) {
                 //开发者处理跳转到APP主页面逻辑
-                kpAdListener.onAdFailed(csjAdError.getMsg() + "");
+                if (csjAdError != null)
+                    Log.d("lhp", "" + csjAdError.getMsg() + "");
+                if (context == null || context.isFinishing() || context.isDestroyed()) return;
+                //开发者处理跳转到APP主页面逻辑
+                if ("csj".equals(AppConfig.getKPType())) {
+                    String banner_String = AppConfig.configBean.ad_kp_idMap.get("gdt");
+                    if (!TextUtils.isEmpty(banner_String)) {
+                        String[] a = banner_String.split(",");
+                        if (a.length == 2) {
+                            String appid = a[0];
+                            String adplaceid = a[1];
+                            ShowGDTKP(context, adsParent, null, kpAdListener, appid, adplaceid);
+                            return;
+                        }
+                    }
+
+                }
+                kpAdListener.onAdFailed(csjAdError == null ? "" : csjAdError.getMsg() + "");
             }
 
             @Override
@@ -148,70 +173,103 @@ public class ADControl {
             }
         }, 4000);
 
-//        mTTAdNative.loadSplashAd(adSlot, new TTAdNative.SplashAdListener() {
-//            //请求广告失败
-//            @Override
-//            @MainThread
-//            public void onError(int code, String message) {
-//                //开发者处理跳转到APP主页面逻辑
-//                kpAdListener.onAdFailed(message + "");
-//            }
-//
-//            //请求广告超时
-//            @Override
-//            @MainThread
-//            public void onTimeout() {
-//                //开发者处理跳转到APP主页面逻辑
-//                kpAdListener.onAdFailed("请求广告超时");
-//            }
-//
-//            //请求广告成功
-//            @Override
-//            @MainThread
-//            public void onSplashAdLoad(TTSplashAd ad) {
-//                if (ad == null) {
-//                    kpAdListener.onAdDismissed();
-//                    return;
-//                }
-//                //获取SplashView
-//                View view = ad.getSplashView();
-//                if (view != null && adsParent != null && !context.isFinishing()) {
-//                    adsParent.removeAllViews();
-//                    //把SplashView 添加到ViewGroup中,注意开屏广告view：width =屏幕宽；height >=75%屏幕高
-//                    adsParent.addView(view);
-//                    //设置不开启开屏广告倒计时功能以及不显示跳过按钮,如果这么设置，您需要自定义倒计时逻辑
-//                    //ad.setNotAllowSdkCountdown();
-//                } else {
-//                    //开发者处理跳转到APP主页面逻辑
-//                    kpAdListener.onAdDismissed();
-//                }
-//
-//                //设置SplashView的交互监听器
-//                ad.setSplashInteractionListener(new TTSplashAd.AdInteractionListener() {
-//                    @Override
-//                    public void onAdClicked(View view, int type) {
-//                        kpAdListener.onAdClick();
-//                    }
-//
-//                    @Override
-//                    public void onAdShow(View view, int type) {
-//                        kpAdListener.onAdPresent();
-//                    }
-//
-//                    @Override
-//                    public void onAdSkip() {
-//                        //开发者处理跳转到APP主页面逻辑
-//                        kpAdListener.onAdDismissed();
-//                    }
-//
-//                    @Override
-//                    public void onAdTimeOver() {
-//                        //开发者处理跳转到APP主页面逻辑
-//                        kpAdListener.onAdDismissed();
-//                    }
-//                });
-//            }
-//        });
+    }
+
+    private void ShowCSJShiPing(final Activity context, final KPAdListener kpAdListener, String appid, String adplaceid) {
+        //创建TTAdNative对象，createAdNative(Context context) context需要传入Activity对象
+        TTAdNative mTTAdNative = TTAdManagerHolder.get().createAdNative(context);
+
+        AdSlot adSlot = new AdSlot.Builder()
+                .setCodeId(adplaceid)
+                //模板广告需要设置期望个性化模板广告的大小,单位dp,激励视频场景，只要设置的值大于0即可
+//        且仅是模板渲染的代码位ID使用，非模板渲染代码位切勿使用
+                .setExpressViewAcceptedSize(500, 500)
+                .setUserID("tag123")//tag_id
+//                .setMediaExtra("media_extra") //附加参数
+                .setOrientation(TTAdConstant.VERTICAL) //必填参数，期望视频的播放方向：TTAdConstant.HORIZONTAL 或 TTAdConstant.VERTICAL
+                .setAdLoadType(LOAD)//推荐使用，用于标注此次的广告请求用途为预加载（当做缓存）还是实时加载，方便后续为开发者优化相关策略
+                .build();
+        mTTAdNative.loadRewardVideoAd(adSlot, new TTAdNative.RewardVideoAdListener() {
+            @Override
+            public void onError(int code, String message) {
+                if (context == null || context.isFinishing() || context.isDestroyed()) return;
+
+                if ("csj".equals(AppConfig.getShipingType())) {
+                    String banner_String = AppConfig.configBean.ad_shiping_idMap.get("gdt");
+                    if (!TextUtils.isEmpty(banner_String)) {
+                        String[] a = banner_String.split(",");
+                        if (a.length == 2) {
+                            String appid = a[0];
+                            String adplaceid = a[1];
+                            showRewardVideoAd(context, appid, adplaceid, kpAdListener);
+                            return;
+                        }
+                    }
+                }
+                kpAdListener.onAdFailed(message + "");
+
+            }
+
+            @Override
+            public void onRewardVideoAdLoad(TTRewardVideoAd ttRewardVideoAd) {
+                if (context != null && !context.isFinishing()) {
+                    ttRewardVideoAd.showRewardVideoAd(context, TTAdConstant.RitScenes.CUSTOMIZE_SCENES, "scenes_test");
+                    ttRewardVideoAd.setRewardAdInteractionListener(new TTRewardVideoAd.RewardAdInteractionListener() {
+                        @Override
+                        public void onAdShow() {
+                            kpAdListener.onAdPresent();
+                            Log.e("ADControl", "ShowCSJShiPing onAdShow");
+                        }
+
+                        @Override
+                        public void onAdVideoBarClick() {
+
+                        }
+
+                        @Override
+                        public void onAdClose() {
+                            Log.e("ADControl", "ShowCSJShiPing onAdClose");
+                            kpAdListener.onAdDismissed();
+                        }
+
+                        @Override
+                        public void onVideoComplete() {
+                            Log.e("ADControl", "ShowCSJShiPing onVideoComplete");
+                        }
+
+                        @Override
+                        public void onVideoError() {
+
+                        }
+
+                        @Override
+                        public void onRewardVerify(boolean b, int i, String s, int i1, String s1) {
+                            Log.e("ADControl", "ShowCSJShiPing onRewardVerify");
+                        }
+
+                        @Override
+                        public void onRewardArrived(boolean b, int i, Bundle bundle) {
+
+                        }
+
+                        @Override
+                        public void onSkippedVideo() {
+                            Log.e("ADControl", "ShowCSJShiPing onSkippedVideo");
+                        }
+                    });
+                }
+            }
+
+            //视频广告加载后，视频资源缓存到本地的回调，在此回调后，播放本地视频，流畅不阻塞。
+            @Override
+            public void onRewardVideoCached() {
+            }
+
+            @Override
+            public void onRewardVideoCached(TTRewardVideoAd ad) {
+//                ad.showRewardVideoAd(context, TTAdConstant.RitScenes.CUSTOMIZE_SCENES, "scenes_test");
+            }
+        });
     }
 
     private void ShowGDTKP(final Activity context, final RelativeLayout adsParent, View skip_view, final KPAdListener kpAdListener, String appid, String adplaceid) {
@@ -225,6 +283,22 @@ public class ADControl {
             @Override
             public void onNoAD(AdError adError) {
 
+                Log.d("lhp", adError != null ? adError.getErrorMsg() + "" : "");
+                if (context == null || context.isFinishing() || context.isDestroyed()) return;
+
+                if ("gdt".equals(AppConfig.getKPType())) {
+                    String banner_String = AppConfig.configBean.ad_kp_idMap.get("csj");
+                    if (!TextUtils.isEmpty(banner_String)) {
+                        String[] a = banner_String.split(",");
+                        if (a.length == 2) {
+                            String appid = a[0];
+                            String adplaceid = a[1];
+                            ShowCSJKP(context, adsParent, null, kpAdListener, appid, adplaceid);
+                            return;
+                        }
+                    }
+
+                }
                 kpAdListener.onAdFailed(adError != null ? adError.getErrorMsg() : "");
             }
 
@@ -274,21 +348,11 @@ public class ADControl {
             @Override
             public void onAdPresent(ADBean bean) {//广告开始展示
                 kpAdListener.onAdPresent();
-//                if (bean != null && !TextUtils.isEmpty(bean.getAd_name())) {
-//                    Map<String, String> map_ekv = new HashMap<String, String>();
-//                    map_ekv.put("show", bean.getAd_name());
-//                    MobclickAgent.onEvent(context, "kp_count", map_ekv);
-//                }
             }
 
             @Override
             public void onAdClick(ADBean bean) {//广告被点击
                 kpAdListener.onAdClick();
-//                if (bean != null && !TextUtils.isEmpty(bean.getAd_name())) {
-//                    Map<String, String> map_ekv = new HashMap<String, String>();
-//                    map_ekv.put("click", bean.getAd_name());
-//                    MobclickAgent.onEvent(context, "kp_count", map_ekv);
-//                }
             }
         };
         SelfKPView selfKPView = new SelfKPView(context);
@@ -421,6 +485,19 @@ public class ADControl {
             @Override
             public void onError(int code, String message) {
                 if (context == null || context.isFinishing() || context.isDestroyed()) return;
+                if ("csj2".equals(AppConfig.getCPType())) {
+                    String banner_String = AppConfig.configBean.ad_cp_idMap.get("gdt2");
+                    if (!TextUtils.isEmpty(banner_String)) {
+                        String[] a = banner_String.split(",");
+                        if (a.length == 2) {
+                            String appid = a[0];
+                            String adplaceid = a[1];
+                            ShowGDTCP2(context, appid, adplaceid);
+                            return;
+                        }
+                    }
+
+                }
                 ShowSelfCP(context);
             }
 
@@ -448,9 +525,398 @@ public class ADControl {
 
     }
 
+    private void ShowGDTCP2(final Activity context, final String appid, final String adplaceid) {
+        if (context == null || context.isFinishing()) return;
+        interAd = getIAD(context, appid, adplaceid, new UnifiedInterstitialADListener() {
+            @Override
+            public void onADReceive() {
+                if (context == null || context.isFinishing() || interAd == null || !interAd.isValid())
+                    return;
+                interAd.show();
+            }
+
+            @Override
+            public void onVideoCached() {
+
+            }
+
+            @Override
+            public void onNoAD(AdError adError) {
+                lastshowadTime = 0;
+                if (context == null || context.isFinishing() || context.isDestroyed()) return;
+                if ("gdt2".equals(AppConfig.getCPType())) {
+                    String banner_String = AppConfig.configBean.ad_cp_idMap.get("csj2");
+                    if (!TextUtils.isEmpty(banner_String)) {
+                        String[] a = banner_String.split(",");
+                        if (a.length == 2) {
+                            String appid = a[0];
+                            String adplaceid = a[1];
+                            ShowCSJCP2(context, appid, adplaceid);
+                            return;
+                        }
+                    }
+
+                }
+                ShowSelfCP(context);
+            }
+
+
+            @Override
+            public void onADOpened() {
+
+            }
+
+            @Override
+            public void onADExposure() {
+
+            }
+
+            @Override
+            public void onADClicked() {
+
+            }
+
+            @Override
+            public void onADLeftApplication() {
+
+            }
+
+            @Override
+            public void onADClosed() {
+
+            }
+
+            @Override
+            public void onRenderSuccess() {
+
+            }
+
+            @Override
+            public void onRenderFail() {
+
+            }
+        });
+
+        interAd.loadAD();
+    }
+
+    private UnifiedInterstitialAD getIAD(Activity context, String appid, String posId, UnifiedInterstitialADListener listener) {
+        if (interAd != null) {
+            if (interAd.isValid())
+                interAd.close();
+            interAd.destroy();
+            interAd = null;
+        }
+        interAd = new UnifiedInterstitialAD(context, posId, listener);
+        return interAd;
+    }
+
+    private void ShowSelfCP(final Context context) {
+
+        SelfCPDialog sfCP = new SelfCPDialog(context);
+        sfCP.setADListener(new SelfBannerAdListener() {
+            @Override
+            public void onAdClick(ADBean adBean) {
+            }
+
+            @Override
+            public void onAdFailed() {
+
+            }
+
+            @Override
+            public void onADReceiv(ADBean adBean) {
+            }
+        });
+        sfCP.show();
+
+    }
+
+    public void ShowCp(Activity context) {
+        ShowCp(context, false);
+    }
+
+    public void ShowCp(Activity context, boolean isShow) {
+        if (AppConfig.isShowCP())//展示开屏广告
+        {
+            if (!isShow) {
+                if (System.currentTimeMillis() - lastshowadTime < showadTimeDuration) {
+                    System.out.println("广告时间没到" + (System.currentTimeMillis() - lastshowadTime));
+                    return;
+                }
+            }
+            lastshowadTime = System.currentTimeMillis();
+            String cpType = AppConfig.getCPType();//获取开屏广告类型，baidu，gdt，google
+            String kp_String = AppConfig.configBean.ad_cp_idMap.get(cpType);
+
+            if (!TextUtils.isEmpty(kp_String)) {
+                String[] a = kp_String.split(",");
+                if (a.length == 2) {
+                    String appid = a[0];
+                    String adplaceid = a[1];
+                    if ("baidu".equals(cpType)) {
+                        ShowSelfCP(context);
+                    } else if ("csj2".equals(cpType)) {
+                        ShowCSJCP2(context, appid, adplaceid);
+                    } else if ("gdt2".equals(cpType)) {
+                        ShowGDTCP2(context, appid, adplaceid);
+                    } else if ("self".equals(cpType)) {
+                        ShowSelfCP(context);
+                    } else {
+                        // kpAdListener.onAdFailed("其他不支持广告类型" + kp_String);
+                    }
+                } else {
+                    // kpAdListener.onAdFailed("后台获取开屏广告的id为" + kp_String);
+                }
+            } else {
+                ShowSelfCP(context);
+            }
+        } else//不展示开屏广告
+        {
+            //  kpAdListener.onAdFailed("后台不展示开屏广告");
+        }
+
+    }
+
+    private void addCSJBanner(final LinearLayout lyt, final Activity context, final String appid, final String adplaceid) {
+        if (mTTAd != null) {
+            mTTAd.destroy();
+            mTTAd = null;
+        }
+        if (lyt != null)
+            lyt.removeAllViews();
+        if (context == null || context.isFinishing()) return;
+        try {
+
+            TTAdNative mTTAdNative = TTAdManagerHolder.get().createAdNative(context);
+
+            //step4:创建广告请求参数AdSlot,具体参数含义参考文档
+            AdSlot adSlot = new AdSlot.Builder()
+                    .setCodeId(adplaceid) //广告位id
+                    .setAdCount(1) //请求广告数量为1到3条
+                    .setExpressViewAcceptedSize(ScreenUtils.getScreenWidth(context), 60) //期望模板广告view的size,单位dp
+                    .build();
+            //step5:请求广告，对请求回调的广告作渲染处理
+            mTTAdNative.loadBannerExpressAd(adSlot, new TTAdNative.NativeExpressAdListener() {
+                @Override
+                public void onError(int code, String message) {
+                    if (lyt != null) {
+                        lyt.removeAllViews();
+                        if ("csj".equals(AppConfig.getBannerType())) {
+                            String banner_String = AppConfig.configBean.ad_banner_idMap.get("gdt2");
+                            if (!TextUtils.isEmpty(banner_String)) {
+                                String[] a = banner_String.split(",");
+                                if (a.length == 2) {
+                                    String appid = a[0];
+                                    String adplaceid = a[1];
+                                    addGDTBanner2(lyt, context, appid, adplaceid);
+                                    return;
+                                }
+                            }
+                        }
+                        addSelfBanner(lyt, context);
+                    }
+                }
+
+                @Override
+                public void onNativeExpressAdLoad(List<TTNativeExpressAd> ads) {
+                    if (ads == null || ads.size() == 0) {
+                        return;
+                    }
+                    mTTAd = ads.get(0);
+                    if (mTTAd == null) {
+                        return;
+                    }
+                    mTTAd.setSlideIntervalTime(30 * 1000);
+                    mTTAd.setExpressInteractionListener(new TTNativeExpressAd.ExpressAdInteractionListener() {
+                        @Override
+                        public void onAdClicked(View view, int type) {
+                        }
+
+                        @Override
+                        public void onAdShow(View view, int type) {
+                        }
+
+                        @Override
+                        public void onRenderFail(View view, String msg, int code) {
+                        }
+
+                        @Override
+                        public void onRenderSuccess(View view, float width, float height) {
+                            //返回view的宽高 单位 dp
+                            if (lyt != null) {
+                                lyt.removeAllViews();
+                                lyt.addView(view);
+                            }
+                        }
+                    });
+                    mTTAd.render();
+
+
+                    //使用默认模板中默认dislike弹出样式
+                    mTTAd.setDislikeCallback(context, new TTAdDislike.DislikeInteractionCallback() {
+                        @Override
+                        public void onShow() {
+
+                        }
+
+                        @Override
+                        public void onSelected(int position, String value, boolean enforce) {
+                            AppConfig.isShowBanner = false;
+                            if (lyt != null)
+                                lyt.removeAllViews();
+                            //用户选择不喜欢原因后，移除广告展示
+                            if (enforce) {
+//                                TToast.show(mContext, "模版Banner 穿山甲sdk强制将view关闭了");
+                            }
+                        }
+
+                        @Override
+                        public void onCancel() {
+                        }
+
+                    });
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void addGDTBanner2(final LinearLayout lyt, final Activity context, final String appid, final String adplaceid) {
+        if (lyt != null)
+            lyt.removeAllViews();
+        if (unifiedBannerView != null && unifiedBannerView.isValid()) {
+            Log.e(context.getClass().getSimpleName(), "banner 广告还有效");
+            if (lyt != null)
+                lyt.addView(unifiedBannerView, getUnifiedBannerLayoutParams(context));
+            // 注意：如果开发者的banner不是始终展示在屏幕中的话，请关闭自动刷新，否则将导致曝光率过低。
+            unifiedBannerView.loadAD();
+            return;
+        }
+        if (unifiedBannerView != null) {
+            unifiedBannerView.destroy();
+            unifiedBannerView = null;
+        }
+
+        if (context == null || context.isFinishing()) return;
+        try {
+            unifiedBannerView = new UnifiedBannerView(context, adplaceid, new UnifiedBannerADListener() {
+                @Override
+                public void onNoAD(AdError adError) {
+                    if (lyt != null) {
+                        lyt.removeAllViews();
+                        if ("gdt2".equals(AppConfig.getBannerType())) {
+                            String banner_String = AppConfig.configBean.ad_banner_idMap.get("csj");
+                            if (!TextUtils.isEmpty(banner_String)) {
+                                String[] a = banner_String.split(",");
+                                if (a.length == 2) {
+                                    String appid = a[0];
+                                    String adplaceid = a[1];
+                                    addCSJBanner(lyt, context, appid, adplaceid);
+                                    return;
+                                }
+                            }
+                        }
+                        addSelfBanner(lyt, context);
+                    }
+                }
+
+                @Override
+                public void onADReceive() {
+
+                }
+
+                @Override
+                public void onADExposure() {
+
+                }
+
+                @Override
+                public void onADClosed() {
+                    AppConfig.isShowBanner = false;
+                    if (lyt != null) {
+                        lyt.removeAllViews();
+                    }
+                }
+
+                @Override
+                public void onADClicked() {
+                    System.out.println("广点通广告被点击");
+                }
+
+                @Override
+                public void onADLeftApplication() {
+
+                }
+
+            });
+            if (lyt != null)
+                lyt.addView(unifiedBannerView, getUnifiedBannerLayoutParams(context));
+            // 注意：如果开发者的banner不是始终展示在屏幕中的话，请关闭自动刷新，否则将导致曝光率过低。
+            unifiedBannerView.loadAD();
+
+        } catch (Exception e1) {
+            e1.printStackTrace();
+        }
+
+    }
+
+    /**
+     * banner2.0规定banner宽高比应该为6.4:1 , 开发者可自行设置符合规定宽高比的具体宽度和高度值
+     *
+     * @return
+     */
+    private LinearLayout.LayoutParams getUnifiedBannerLayoutParams(Activity context) {
+        Point screenSize = new Point();
+        context.getWindowManager().getDefaultDisplay().getSize(screenSize);
+        return new LinearLayout.LayoutParams(screenSize.x, Math.round(screenSize.x / 6.4F));
+    }
+
+    public void addGoogleBanner(final LinearLayout lyt, final Activity context, String appid, String adplaceid) {
+        lyt.removeAllViews();
+    }
+
+    public void addSelfBanner(LinearLayout lyt, final Activity context) {
+        if (lyt != null) {
+            lyt.removeAllViews();
+        }
+        if (context == null || context.isFinishing()) return;
+        try {
+            SelfBannerView bv = new SelfBannerView(context);
+            bv.setADListener(new SelfBannerAdListener() {
+                @Override
+                public void onAdClick(ADBean adBean) {
+                    AppConfig.openAD(context, adBean, "banner_count");
+                }
+
+                @Override
+                public void onAdFailed() {
+
+                }
+
+                @Override
+                public void onADReceiv(ADBean adBean) {
+//                    if (adBean != null && !TextUtils.isEmpty(adBean.getAd_name())) {
+//                        Map<String, String> map_ekv = new HashMap<String, String>();
+//                        map_ekv.put("show", adBean.getAd_name());
+//                        MobclickAgent.onEvent(context, "banner_count", map_ekv);
+//                        System.out.println("广告被展示:"+adBean.getAd_name());
+//                    }
+                }
+            });
+            if (lyt != null)
+                lyt.addView(bv);
+
+        } catch (Exception e1) {
+            e1.printStackTrace();
+        }
+
+    }
+
     public void showShiPingAD(final Activity activity, KPAdListener kpAdListener) {
         boolean isShow = false;
-        if (AppConfig.isShowShiping()) {//展示开屏广告
+        if (AppConfig.isShowShipng()) {//展示开屏广告
             if (activity != null) {
                 String spType = AppConfig.getShipingType();
                 String banner_String = AppConfig.configBean.ad_shiping_idMap.get(spType);
@@ -460,7 +926,13 @@ public class ADControl {
                         String appid = a[0];
                         String adplaceid = a[1];
                         isShow = true;
-                        if ("csj".equals(spType)) {
+                        if ("gdt".equals(spType)) {
+                            showRewardVideoAd(activity, appid, adplaceid, kpAdListener);
+                        } else if ("gdtfull".equals(spType)) {
+                            showFullScreenVideoAd(activity, appid, adplaceid, kpAdListener);
+                        } else if ("csj".equals(spType)) {
+                            ShowCSJShiPing(activity, kpAdListener, appid, adplaceid);
+                        } else if ("csjfull".equals(spType)) {
                             showCSJFullVideoAd(activity, appid, adplaceid, kpAdListener);
                         } else {
                             if (kpAdListener != null)
@@ -494,14 +966,26 @@ public class ADControl {
                 .setSupportDeepLink(true)
                 .setOrientation(TTAdConstant.VERTICAL)//必填参数，期望视频的播放方向：TTAdConstant.HORIZONTAL 或 TTAdConstant.VERTICAL
                 .setAdLoadType(PRELOAD)//推荐使用，用于标注此次的广告请求用途为预加载（当做缓存）还是实时加载，方便后续为开发者优化相关策略
-//                .setDownloadType(TTAdConstant.DOWNLOAD_TYPE_POPUP)
                 .build();
 
         mTTAdNative.loadFullScreenVideoAd(adSlot, new TTAdNative.FullScreenVideoAdListener() {
             //请求广告失败
             @Override
             public void onError(int code, String message) {
-                kpAdListener.onAdFailed(message + "");
+                if ("csjfull".equals(AppConfig.getShipingType())) {
+                    String banner_String = AppConfig.configBean.ad_shiping_idMap.get("gdtfull");
+                    if (!TextUtils.isEmpty(banner_String)) {
+                        String[] a = banner_String.split(",");
+                        if (a.length == 2) {
+                            String appid = a[0];
+                            String adplaceid = a[1];
+                            showFullScreenVideoAd(activity, appid, adplaceid, kpAdListener);
+                            return;
+                        }
+                    }
+                }
+                if (kpAdListener != null)
+                    kpAdListener.onAdFailed(message + "");
             }
 
             //广告物料加载完成的回调
@@ -596,15 +1080,132 @@ public class ADControl {
     }
 
 
-    private void ShowGDTCP2(final Activity context, final String appid, final String adplaceid) {
+    private RewardVideoAD rewardVideoAD;
 
-        if (context == null || context.isFinishing()) return;
-        interAd = getIAD(context, appid, adplaceid, new UnifiedInterstitialADListener() {
+    /**
+     * 激励视频广告
+     *
+     * @param activity
+     * @param appid
+     * @param adplaceid
+     */
+    private void showRewardVideoAd(final Activity activity, String appid, String adplaceid, final KPAdListener kpAdListener) {
+        if (rewardVideoAD == null || rewardVideoAD.hasShown()) {
+            rewardVideoAD = new RewardVideoAD(activity.getApplicationContext(), adplaceid, new RewardVideoADListener() {
+                @Override
+                public void onADLoad() {
+                    boolean isShow = false;
+                    // 3. 展示激励视频广告
+                    if (rewardVideoAD != null) {//广告展示检查1：广告成功加载，此处也可以使用videoCached来实现视频预加载完成后再展示激励视频广告的逻辑
+                        if (!rewardVideoAD.hasShown()) {//广告展示检查2：当前广告数据还没有展示过
+                            long delta = 1000;//建议给广告过期时间加个buffer，单位ms，这里demo采用1000ms的buffer
+                            //广告展示检查3：展示广告前判断广告数据未过期
+//                            if (SystemClock.elapsedRealtime() < (rewardVideoAD.getExpireTimestamp() - delta)) {
+                            isShow = true;
+                            rewardVideoAD.showAD(activity);
+//                            }
+//                        else {
+//                            Toast.makeText(this, "激励视频广告已过期，请再次请求广告后进行广告展示！", Toast.LENGTH_LONG).show();
+//                        }
+//                            rewardVideoAD.showAD(activity);
+                        } else {
+//                        Toast.makeText(this, "此条广告已经展示过，请再次请求广告后进行广告展示！", Toast.LENGTH_LONG).show();
+                        }
+                    }
+                    if (!isShow) {
+                        if (kpAdListener != null)
+                            kpAdListener.onAdFailed("onADLoad 视频失败");
+                    }
+
+                }
+
+                @Override
+                public void onVideoCached() {
+
+                }
+
+                @Override
+                public void onADShow() {
+                    if (kpAdListener != null)
+                        kpAdListener.onAdPresent();
+                }
+
+                @Override
+                public void onADExpose() {
+                    Log.e("ADControl", "showRewardVideoAd onADExpose");
+                }
+
+                @Override
+                public void onReward(Map<String, Object> map) {
+
+                }
+
+                @Override
+                public void onADClick() {
+
+                }
+
+                @Override
+                public void onVideoComplete() {
+
+                }
+
+                @Override
+                public void onADClose() {
+                    if (kpAdListener != null)
+                        kpAdListener.onAdDismissed();
+                }
+
+                @Override
+                public void onError(AdError adError) {
+                    rewardVideoAD = null;
+                    if ("gdt".equals(AppConfig.getShipingType())) {
+                        String banner_String = AppConfig.configBean.ad_shiping_idMap.get("csj");
+                        if (!TextUtils.isEmpty(banner_String)) {
+                            String[] a = banner_String.split(",");
+                            if (a.length == 2) {
+                                String appid = a[0];
+                                String adplaceid = a[1];
+                                ShowCSJShiPing(activity, kpAdListener, appid, adplaceid);
+                                return;
+                            }
+                        }
+                    }
+                    if (kpAdListener != null)
+                        kpAdListener.onAdFailed(adError.getErrorMsg());
+                }
+            }, true);
+            // 2. 加载激励视频广告
+            rewardVideoAD.loadAD();
+        } else {
+            long delta = 1000;//建议给广告过期时间加个buffer，单位ms，这里demo采用1000ms的buffer
+            //广告展示检查3：展示广告前判断广告数据未过期
+//            if (SystemClock.elapsedRealtime() < (rewardVideoAD.getExpireTimestamp() - delta)) {
+            rewardVideoAD.showAD(activity);
+//            } else {
+//                if (kpAdListener != null)
+//                    kpAdListener.onAdFailed("激励视频播放失败");
+//                rewardVideoAD = null;
+//            }
+        }
+    }
+
+    /**
+     * 全屏视频广告
+     *
+     * @param activity
+     * @param appid
+     * @param adplaceid
+     */
+    private void showFullScreenVideoAd(final Activity activity, String appid, String adplaceid, final KPAdListener kpAdListener) {
+        interAd = getIAD(activity, appid, adplaceid, new UnifiedInterstitialADListener() {
             @Override
             public void onADReceive() {
-                if (context == null || context.isFinishing() || interAd == null || !interAd.isValid())
+                if (activity == null || activity.isFinishing() || interAd == null || !interAd.isValid())
                     return;
-                interAd.show();
+                if (kpAdListener != null)
+                    kpAdListener.onAdPresent();
+                interAd.showFullScreenAD(activity);
             }
 
             @Override
@@ -614,8 +1215,21 @@ public class ADControl {
 
             @Override
             public void onNoAD(AdError adError) {
-                lastshowadTime = 0;
-                ShowSelfCP(context);
+                if ("gdtfull".equals(AppConfig.getShipingType())) {
+                    String banner_String = AppConfig.configBean.ad_shiping_idMap.get("csjfull");
+                    if (!TextUtils.isEmpty(banner_String)) {
+                        String[] a = banner_String.split(",");
+                        if (a.length == 2) {
+                            String appid = a[0];
+                            String adplaceid = a[1];
+                            showCSJFullVideoAd(activity, appid, adplaceid, kpAdListener);
+                            return;
+                        }
+                    }
+                }
+                if (kpAdListener != null)
+                    kpAdListener.onAdFailed(adError.getErrorMsg());
+
             }
 
 
@@ -641,7 +1255,8 @@ public class ADControl {
 
             @Override
             public void onADClosed() {
-
+                if (kpAdListener != null)
+                    kpAdListener.onAdDismissed();
             }
 
             @Override
@@ -653,318 +1268,26 @@ public class ADControl {
             public void onRenderFail() {
 
             }
+
         });
-
-        interAd.loadAD();
+        setVideoOption();
+        interAd.loadFullScreenAD();
     }
 
-    private UnifiedInterstitialAD getIAD(Activity context, String appid, String posId, UnifiedInterstitialADListener listener) {
-        if (interAd != null && interAd.isValid()) {
-            interAd.close();
-            interAd.destroy();
-            interAd = null;
-        }
-        interAd = new UnifiedInterstitialAD(context, posId, listener);
-        return interAd;
-    }
-
-    private void ShowSelfCP(final Context context) {
-
-        SelfCPDialog sfCP = new SelfCPDialog(context);
-        sfCP.setADListener(new SelfBannerAdListener() {
-            @Override
-            public void onAdClick(ADBean adBean) {
-            }
-
-            @Override
-            public void onAdFailed() {
-
-            }
-
-            @Override
-            public void onADReceiv(ADBean adBean) {
-            }
-        });
-        sfCP.show();
-
-    }
-
-    public void ShowCp(Activity context) {
-        ShowCp(context, false);
-    }
-
-    public void ShowCp(Activity context, boolean isMustShow) {
-        if (AppConfig.isShowCP())//展示开屏广告
-        {
-            if (!isMustShow) {
-                if (System.currentTimeMillis() - lastshowadTime < showadTimeDuration) {
-                    System.out.println("广告时间没到" + (System.currentTimeMillis() - lastshowadTime));
-                    return;
-                }
-            }
-            lastshowadTime = System.currentTimeMillis();
-            String cpType = AppConfig.getCPType();//获取开屏广告类型，baidu，gdt，google
-            String kp_String = AppConfig.configBean.ad_cp_idMap.get(cpType);
-
-            if (!TextUtils.isEmpty(kp_String)) {
-                String[] a = kp_String.split(",");
-                if (a.length == 2) {
-                    String appid = a[0];
-                    String adplaceid = a[1];
-                    if ("baidu".equals(cpType)) {
-                        ShowSelfCP(context);
-                    } else if ("csj2".equals(cpType)) {
-                        ShowCSJCP2(context, appid, adplaceid);
-                    } else if ("gdt2".equals(cpType)) {
-                        ShowGDTCP2(context, appid, adplaceid);
-                    } else if ("self".equals(cpType)) {
-                        ShowSelfCP(context);
-                    } else {
-                        // kpAdListener.onAdFailed("其他不支持广告类型" + kp_String);
-                    }
-                } else {
-                    // kpAdListener.onAdFailed("后台获取开屏广告的id为" + kp_String);
-                }
-            } else {
-                ShowSelfCP(context);
-            }
-        } else//不展示开屏广告
-        {
-            //  kpAdListener.onAdFailed("后台不展示开屏广告");
-        }
-
-    }
-
-    private void addCSJBanner(final LinearLayout lyt, final Activity context, final String appid, final String adplaceid) {
-        if (mTTAd != null) {
-            if (lyt != null)
-                lyt.removeAllViews();
-            mTTAd.destroy();
-            mTTAd = null;
-        }
-        if (context == null || context.isFinishing()) return;
-        try {
-
-            TTAdNative mTTAdNative = TTAdManagerHolder.get().createAdNative(context);
-
-            //step4:创建广告请求参数AdSlot,具体参数含义参考文档
-            AdSlot adSlot = new AdSlot.Builder()
-                    .setCodeId(adplaceid) //广告位id
-                    .setAdCount(1) //请求广告数量为1到3条
-                    .setExpressViewAcceptedSize(ScreenUtils.getScreenWidth(context), 60) //期望模板广告view的size,单位dp
-//                    .setDownloadType(TTAdConstant.DOWNLOAD_TYPE_POPUP) // 应用每次下载都需要触发弹窗披露应用信息（不含跳转商店的场景），该配置优先级高于下载网络弹窗配置；
-                    .build();
-            //step5:请求广告，对请求回调的广告作渲染处理
-            mTTAdNative.loadBannerExpressAd(adSlot, new TTAdNative.NativeExpressAdListener() {
-                @Override
-                public void onError(int code, String message) {
-                    if (lyt != null) {
-                        lyt.removeAllViews();
-                        addSelfBanner(lyt, context);
-                    }
-                }
-
-                @Override
-                public void onNativeExpressAdLoad(List<TTNativeExpressAd> ads) {
-                    if (ads == null || ads.size() == 0) {
-                        return;
-                    }
-                    mTTAd = ads.get(0);
-                    if (mTTAd == null) {
-                        return;
-                    }
-                    mTTAd.setSlideIntervalTime(30 * 1000);
-                    mTTAd.setExpressInteractionListener(new TTNativeExpressAd.ExpressAdInteractionListener() {
-                        @Override
-                        public void onAdClicked(View view, int type) {
-                        }
-
-                        @Override
-                        public void onAdShow(View view, int type) {
-                        }
-
-                        @Override
-                        public void onRenderFail(View view, String msg, int code) {
-                        }
-
-                        @Override
-                        public void onRenderSuccess(View view, float width, float height) {
-                            //返回view的宽高 单位 dp
-                            if (lyt != null) {
-                                lyt.removeAllViews();
-                                lyt.addView(view);
-                            }
-                        }
-                    });
-                    mTTAd.render();
-
-
-                    //使用默认模板中默认dislike弹出样式
-                    mTTAd.setDislikeCallback(context, new TTAdDislike.DislikeInteractionCallback() {
-                        @Override
-                        public void onShow() {
-
-                        }
-
-                        @Override
-                        public void onSelected(int position, String value, boolean enforce) {
-                            AppConfig.isShowBanner = false;
-                            if (lyt != null)
-                                lyt.removeAllViews();
-                            //用户选择不喜欢原因后，移除广告展示
-                            if (enforce) {
-//                                TToast.show(mContext, "模版Banner 穿山甲sdk强制将view关闭了");
-                            }
-                        }
-
-                        @Override
-                        public void onCancel() {
-                        }
-
-                    });
-                }
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void addGDTBanner2(final LinearLayout lyt, final Activity context, final String appid, final String adplaceid) {
-
-        if (unifiedBannerView != null && unifiedBannerView.isValid()) {
-            Log.e("ADControl", "banner广告还有效");
-            return;
-        }
-
-        if (unifiedBannerView != null) {
-            if (lyt != null)
-                lyt.removeAllViews();
-            unifiedBannerView.destroy();
-            unifiedBannerView = null;
-        }
-
-        if (context == null || context.isFinishing()) return;
-        try {
-            unifiedBannerView = new UnifiedBannerView(context, adplaceid, new UnifiedBannerADListener() {
-                @Override
-                public void onNoAD(AdError adError) {
-                    addSelfBanner(lyt, context);
-                }
-
-                @Override
-                public void onADReceive() {
-
-                }
-
-                @Override
-                public void onADExposure() {
-
-                }
-
-                @Override
-                public void onADClosed() {
-                    AppConfig.isShowBanner = false;
-                    if (lyt != null) {
-                        lyt.removeAllViews();
-                    }
-                }
-
-                @Override
-                public void onADClicked() {
-                    System.out.println("广点通广告被点击");
-                }
-
-                @Override
-                public void onADLeftApplication() {
-
-                }
-
-            });
-            if (lyt != null)
-                lyt.addView(unifiedBannerView, getUnifiedBannerLayoutParams(context));
-            // 注意：如果开发者的banner不是始终展示在屏幕中的话，请关闭自动刷新，否则将导致曝光率过低。
-            unifiedBannerView.loadAD();
-
-        } catch (Exception e1) {
-            e1.printStackTrace();
-        }
-
-    }
-
-    /**
-     * banner2.0规定banner宽高比应该为6.4:1 , 开发者可自行设置符合规定宽高比的具体宽度和高度值
-     *
-     * @return
-     */
-    private LinearLayout.LayoutParams getUnifiedBannerLayoutParams(Activity context) {
-        Point screenSize = new Point();
-        context.getWindowManager().getDefaultDisplay().getSize(screenSize);
-        return new LinearLayout.LayoutParams(screenSize.x, Math.round(screenSize.x / 6.4F));
-    }
-
-    public void addGoogleBanner(final LinearLayout lyt, final Activity context, String appid, String adplaceid) {
-        lyt.removeAllViews();
-    }
-
-    public void addSelfBanner(LinearLayout lyt, final Activity context) {
-        if (lyt == null)
-            return;
-
-        lyt.removeAllViews();
-        if (context == null || context.isFinishing()) return;
-        try {
-            SelfBannerView bv = new SelfBannerView(context);
-            bv.setADListener(new SelfBannerAdListener() {
-                @Override
-                public void onAdClick(final ADBean adBean) {
-//                    if(context != null && !context.isFinishing()) {
-//                        AlertDialog.Builder builder = new AlertDialog.Builder(context)
-//                                .setMessage(adBean.getAd_name() + "\n" + adBean.getAd_description())
-//                                .setTitle("下载")
-//                                .setPositiveButton("下载", new OnClickListener() {
-//                                    @Override
-//                                    public void onClick(DialogInterface dialog, int which) {
-//                                        AppConfig.openAD(context, adBean, "banner_count");
-//                                    }
-//                                })
-//                                .setNegativeButton("取消", null);
-//                        AlertDialog alertDialog = builder.create();
-//                        alertDialog.setCanceledOnTouchOutside(false);
-//                        alertDialog.show();
-//                    }
-
-                    AppConfig.openAD(context, adBean, "banner_count");
-
-                }
-
-                @Override
-                public void onAdFailed() {
-
-                }
-
-                @Override
-                public void onADReceiv(ADBean adBean) {
-//                    if (adBean != null && !TextUtils.isEmpty(adBean.getAd_name())) {
-//                        Map<String, String> map_ekv = new HashMap<String, String>();
-//                        map_ekv.put("show", adBean.getAd_name());
-//                        MobclickAgent.onEvent(context, "banner_count", map_ekv);
-//                        System.out.println("广告被展示:"+adBean.getAd_name());
-//                    }
-                }
-            });
-            lyt.addView(bv);
-
-        } catch (Exception e1) {
-            e1.printStackTrace();
-        }
-
+    private void setVideoOption() {
+        VideoOption.Builder builder = new VideoOption.Builder();
+        VideoOption option = builder.setAutoPlayMuted(false).build();
+        interAd.setVideoOption(option);
+        interAd.setMinVideoDuration(0);
+        int maxVideoDuration = new Random().nextInt(15) + 10;
+        interAd.setMaxVideoDuration(maxVideoDuration);
     }
 
     private UnifiedBannerView unifiedBannerView;
     private TTNativeExpressAd mTTAd;
 
-    public void addAd(LinearLayout lyt, Activity activity) {
-        addBannerAd(lyt, activity);
+    public void addAd(LinearLayout lyt, Activity context) {
+        addBannerAd(lyt, context);
     }
 
     public void addBannerAd(LinearLayout lyt, Activity context) {
@@ -1072,9 +1395,12 @@ public class ADControl {
                 isonshow = false;
             }
         }).setCancelable(false).show();
+
+
     }
 
     public boolean update(Context context) {
+
         if (AppConfig.isShowUpdate()) {
             int currentVersion = 0;
             try {
@@ -1084,7 +1410,16 @@ public class ADControl {
                 currentVersion = pi.versionCode;
                 if (currentVersion < AppConfig.configBean.updatemsg.versioncode) {
                     UpdateDialog dg = new UpdateDialog(context);
+
                     dg.show();
+//                    Window dialogWindow = dg.getWindow();
+//                    Display display = ((Activity) context).getWindowManager().getDefaultDisplay();
+//
+//                    WindowManager.LayoutParams p = dialogWindow.getAttributes(); // 获取对话框当前的参数值
+//                    p.x=display.
+//                    p.height = (int) (display.getHeight() * 0.8); // 高度设置为屏幕的0.6，根据实际情况调整
+//                    p.width = (int) (display.getWidth() * 0.8); // 宽度设置为屏幕的0.65，根据实际情况调整
+//                    dialogWindow.setAttributes(p);
                     return true;
                 } else {
                     return false;
@@ -1134,6 +1469,9 @@ public class ADControl {
     }
 
     public void destroyView() {
+        if (mTTFullVideoAd != null)
+            mTTFullVideoAd = null;
+
         if (interAd != null) {
             if (interAd.isValid())
                 interAd.close();

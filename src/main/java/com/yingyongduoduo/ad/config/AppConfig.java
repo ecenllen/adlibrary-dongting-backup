@@ -15,10 +15,14 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.qq.e.comm.managers.GDTAdSdk;
+import com.umeng.analytics.MobclickAgent;
 import com.yingyongduoduo.ad.TTAdManagerHolder;
 import com.yingyongduoduo.ad.bean.ADBean;
 import com.yingyongduoduo.ad.bean.ConfigBean;
+import com.yingyongduoduo.ad.bean.MainListBean;
 import com.yingyongduoduo.ad.bean.PublicConfigBean;
+import com.yingyongduoduo.ad.bean.SearchListBean;
+import com.yingyongduoduo.ad.bean.ShowListBean;
 import com.yingyongduoduo.ad.bean.VideoBean;
 import com.yingyongduoduo.ad.bean.WXGZHBean;
 import com.yingyongduoduo.ad.bean.ZiXunItemBean;
@@ -33,10 +37,15 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +58,10 @@ import java.util.Set;
  * Created by yuminer on 2017/3/16.
  */
 public class AppConfig {
+
+    public static final String KEY_PUBLIC = "publicConfigJson";
+    public static final String KEY_CONFIG = "ConfigJson";
+    public static final String KEY_SELF = "SelfadJson";
 
     /**
      * index.html主页路径，从后台下载到手机本地的index.html 路径
@@ -66,30 +79,69 @@ public class AppConfig {
      * start.html本地路径：前缀加了file://，直接提供给webView使用
      */
     public static String URL_START_HTML;
+
     public static boolean isShowBanner = true;
 
+    private static String play_qingxidu = "1";//清晰度 0,1,2 对应标清，高清，超清
+    private static String download_qingxidu = "1";
     public static String youkulibPath;
+    public static boolean isshowHDPicture = true;
+    public static String GZHPath;
     public static float decimal = 0.05f;//广告内容百分比
-    public static boolean isUserClickExit = false;
-    public static final int tipsTime = 1000;
+    public static String[] qingxiduArray = new String[]{"标清", "高清", "超清", "1008P"};
 
+    public static String getDownload_qingxidu(Context context) {
+        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
+        AppConfig.download_qingxidu = mSettings.getString("download_qingxidu", "2");
+        return AppConfig.download_qingxidu;
+    }
+
+    public static String getDownload_qingxidu() {
+        return AppConfig.download_qingxidu;
+    }
+
+    public static void setDownload_qingxidu(Context context, String qingxidu) {
+        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = mSettings.edit();
+        editor.putString("download_qingxidu", qingxidu);
+        editor.commit();
+        AppConfig.download_qingxidu = qingxidu;
+    }
+
+    public static String getPlay_Qingxidu(Context context) {
+        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
+        AppConfig.play_qingxidu = mSettings.getString("play_qingxidu", "2");
+        return AppConfig.play_qingxidu;
+    }
+
+    public static String getPlay_Qingxidu() {
+        return AppConfig.play_qingxidu;
+    }
+
+    public static void setPlay_Qingxidu(Context context, String qingxidu) {
+        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = mSettings.edit();
+        editor.putString("play_qingxidu", qingxidu);
+        editor.commit();
+        AppConfig.play_qingxidu = qingxidu;
+    }
+
+    //    public static List<DownloadInfo> downloadInfos = new ArrayList<DownloadInfo>();
+    //    public static String ConfigJson = "";
+//    public static String VideoJson = "";
+//    public static String SelfadJson = "";
+//    public static String wxgzhJson = "";
     public static String versioncode = "";
     public static String Channel = "";
     public static String APPKEY = "";
 
 
-    private final static String baseURL1 = "https://api.csdtkj.cn/xly/webcloud/";
-    private final static String baseURL2 = "http://videodata.gz.bcebos.com/appstore/";
-    private final static String baseURL3 = "http://www.yingyongduoduo.com/appstore";
+    private final static String baseURL1 = "http://120.25.224.76/appstore/";
+    public final static String baseURL2 = "http://videodata.gz.bcebos.com/appstore/";
+    public final static String baseURL3 = "http://www.yingyongduoduo.com/appstore/";
     private final static String configbaseURL1 = baseURL1 + "%s/";
     private final static String configbaseURL2 = baseURL2 + "%s/";
     private final static String configbaseURL3 = baseURL3 + "%s/";
-
-//    private final static String configAPI = "jsonadconfig/getadconfig";
-//    private final static String publicAPI = "jsonadconfig/getpublic";
-//    private final static String videoAPI = "jsonadconfig/getvideo";
-//    private final static String selfadAPI = "jsonadconfig/getselfad";
-//    private final static String zixunAPI = "jsonadconfig/getzixun";
 
     public static ConfigBean configBean;
     public static PublicConfigBean publicConfigBean;
@@ -115,8 +167,8 @@ public class AppConfig {
 //        initwxgzhJson(context);
 
 //        initvideosourceVersion(context);
-
         initADManager(context);
+
     }
 
     private static void initADManager(Context context) {
@@ -155,7 +207,6 @@ public class AppConfig {
         }
     }
 
-
     /**
      * 初始化本地参数配置
      * 在Application 进行初始化
@@ -172,7 +223,6 @@ public class AppConfig {
         } catch (PackageManager.NameNotFoundException e1) {
             e1.printStackTrace();
         }
-        isShowBanner = true;
         AppConfig.INDEX_HTML_LOCAL_PATH = context.getCacheDir() + File.separator + "index.html";// 浏览器主页HTML存放位置
         AppConfig.START_HTML_LOCAL_PATH = context.getCacheDir() + File.separator + "start.html";// 浏览器主页HTML存放位置
         // 浏览器主页HTML存放位置 测试
@@ -181,6 +231,8 @@ public class AppConfig {
         AppConfig.URL_INDEX_HTML = String.format("%s" + AppConfig.INDEX_HTML_LOCAL_PATH, "file://");
         AppConfig.URL_START_HTML = String.format("%s" + AppConfig.START_HTML_LOCAL_PATH, "file://");
         AppConfig.youkulibPath = context.getCacheDir() + File.separator + "videoparse.jar";// 初始化引擎存放位置
+        AppConfig.GZHPath = IData.DEFAULT_GZH_CACHE;// 公众号的目录不能用缓存目录
+
         InitLocal(context);
     }
 
@@ -195,17 +247,18 @@ public class AppConfig {
         return "";
     }
 
-    private static void InitLocal(Context context) {
-
-        initConfigBean(context);
-        initPublicConfigBean(context);
+    public static void InitLocal(Context context) {
+        isShowBanner = true;
+        initConfigBean(context, getPreferencesJson(context, KEY_CONFIG));
+        initPublicConfigBean(context, getPreferencesJson(context, KEY_PUBLIC));
 //        initVideoBean(context);
-        initselfadBeans(context);
+        initselfadBeans(context, getPreferencesJson(context, KEY_SELF));
         initZixunBeans(context);
-//        initwxgzhBeans(context);
+        initwxgzhBeans(context);
         //initvideosourceVersion(context);这个没有必要初始化
 
         initADManager(context);
+
     }
 
     public static ConfigBean getConfigBean(String configJson) {
@@ -287,8 +340,14 @@ public class AppConfig {
                     if (haveKey(jo_channelInfo, "nohaoping")) {
                         bean.nohaoping = jo_channelInfo.getString("nohaoping");
                     }
+                    if (haveKey(jo_channelInfo, "nomapnochannel")) {
+                        bean.nomapnochannel = jo_channelInfo.getString("nomapnochannel");
+                    }
                     if (haveKey(jo_channelInfo, "noadbannerchannel")) {
                         bean.noadbannerchannel = jo_channelInfo.getString("noadbannerchannel");
+                    }
+                    if (haveKey(jo_channelInfo, "noshipingadchannel")) {
+                        bean.noshipingadchannel = jo_channelInfo.getString("noshipingadchannel");
                     }
                     if (haveKey(jo_channelInfo, "noadkpchannel")) {
                         bean.noadkpchannel = jo_channelInfo.getString("noadkpchannel");
@@ -298,9 +357,6 @@ public class AppConfig {
                     }
                     if (haveKey(jo_channelInfo, "noadcpchannel")) {
                         bean.noadcpchannel = jo_channelInfo.getString("noadcpchannel");
-                    }
-                    if (haveKey(jo_channelInfo, "nomapnochannel")) {
-                        bean.nomapnochannel = jo_channelInfo.getString("nomapnochannel");
                     }
                     if (haveKey(jo_channelInfo, "nopaychannel")) {
                         bean.nopaychannel = jo_channelInfo.getString("nopaychannel");
@@ -314,14 +370,14 @@ public class AppConfig {
                     if (haveKey(jo_channelInfo, "noshowdschannel")) {
                         bean.noshowdschannel = jo_channelInfo.getString("noshowdschannel");
                     }
-                    if (haveKey(jo_channelInfo, "noshipingadchannel")) {
-                        bean.noshipingadchannel = jo_channelInfo.getString("noshipingadchannel");
-                    }
                     if (haveKey(jo_channelInfo, "noupdatechannel")) {
                         bean.noupdatechannel = jo_channelInfo.getString("noupdatechannel");
                     }
-                    if (haveKey(jo_channelInfo, "greythemechannel")) {
-                        bean.greythemechannel = jo_channelInfo.getString("greythemechannel");
+                    if (haveKey(jo_channelInfo, "noselfadchannel")) {
+                        bean.noselfadchannel = jo_channelInfo.getString("noselfadchannel");
+                    }
+                    if (haveKey(jo_channelInfo, "norootpaychannel")) {
+                        bean.norootpaychannel = jo_channelInfo.getString("norootpaychannel");
                     }
                     if (haveKey(jo_channelInfo, "noaddvideochannel")) {
                         bean.noaddvideochannel = jo_channelInfo.getString("noaddvideochannel");
@@ -337,6 +393,9 @@ public class AppConfig {
                     if (haveKey(jo_channelInfo, "bannertype")) {
                         bean.bannertype = jo_channelInfo.getString("bannertype");
                     }
+                    if (haveKey(jo_channelInfo, "mapno")) {
+                        bean.mapno = jo_channelInfo.getString("mapno");
+                    }
                     if (haveKey(jo_channelInfo, "cptype")) {
                         bean.cptype = jo_channelInfo.getString("cptype");
                     }
@@ -349,8 +408,8 @@ public class AppConfig {
                     if (haveKey(jo_channelInfo, "shipingtype")) {
                         bean.shipingtype = jo_channelInfo.getString("shipingtype");
                     }
-                    if (haveKey(jo_channelInfo, "mapno")) {
-                        bean.mapno = jo_channelInfo.getString("mapno");
+                    if (haveKey(jo_channelInfo, "navigationid")) {
+                        bean.navigationid = jo_channelInfo.getString("navigationid");
                     }
 
                 } else {
@@ -387,6 +446,9 @@ public class AppConfig {
             if (haveKey(jo, "goodPinglunVersion")) {
                 bean.goodPinglunVersion = jo.getString("goodPinglunVersion");
             }
+            if (haveKey(jo, "rootContent")) {
+                bean.rootContent = jo.getString("rootContent");
+            }
             if (haveKey(jo, "onlineVideoParseVersion")) {
                 bean.onlineVideoParseVersion = jo.getString("onlineVideoParseVersion");
             }
@@ -402,29 +464,11 @@ public class AppConfig {
             if (haveKey(jo, "fenxiangInfo")) {
                 bean.fenxiangInfo = jo.getString("fenxiangInfo");
             }
-            if (haveKey(jo, "searchbaiduworld")) {
-                bean.searchbaiduworld = jo.getString("searchbaiduworld");
+            if (haveKey(jo, "zhikouling")) {
+                bean.zhikouling = jo.getString("zhikouling");
             }
             if (haveKey(jo, "searchbaidudomestic")) {
                 bean.searchbaidudomestic = jo.getString("searchbaidudomestic");
-            }
-            if (haveKey(jo, "mar3dUrl")) {
-                bean.mar3dUrl = jo.getString("mar3dUrl");
-            }
-            if (haveKey(jo, "googlestreetip")) {
-                bean.googlestreetip = jo.getString("googlestreetip");
-            }
-            if (haveKey(jo, "mar3dserver")) {
-                bean.mar3dserver = jo.getString("mar3dserver");
-            }
-            if (haveKey(jo, "mar3ddomain")) {
-                bean.mar3ddomain = jo.getString("mar3ddomain");
-            }
-            if (haveKey(jo, "regionurl")) {
-                bean.regionurl = jo.getString("regionurl");
-            }
-            if (haveKey(jo, "zhikouling")) {
-                bean.zhikouling = jo.getString("zhikouling");
             }
         } catch (Exception e) {
             bean = null;
@@ -543,7 +587,7 @@ public class AppConfig {
                     bean.introduction = jo.getString("introduction");
                     bean.thumb = jo.getString("thumb");
                     bean.url = jo.getString("url");
-                    if (new File(IData.getDefaultGzhCache() + bean.id + ".jpg").exists()) {
+                    if (new File(GZHPath + bean.id + ".jpg").exists()) {
                         bean.isPicExist = true;
                     }
                     beans.add(bean);
@@ -573,7 +617,8 @@ public class AppConfig {
     private static String getPubConfigJson(String url) {
         String getpubConfigJson = "";
         try {
-            getpubConfigJson = HttpUtil.getJson(url);
+            getpubConfigJson =
+                    HttpUtil.getJson(url);
             PublicConfigBean bean1 = getpublicConfigBean(getpubConfigJson);
             if (bean1 == null) {
                 getpubConfigJson = "";
@@ -586,7 +631,6 @@ public class AppConfig {
     }
 
     private final static String dongtingBaseURL1 = "https://api.csdtkj.cn/xly/webcloud/";
-
     private final static String configAPI = dongtingBaseURL1 + "jsonadconfig/getadconfig";
     private final static String publicAPI = dongtingBaseURL1 + "jsonadconfig/getpublic";
     private final static String videoAPI = dongtingBaseURL1 + "jsonadconfig/getvideo";
@@ -594,13 +638,12 @@ public class AppConfig {
     private final static String zixunAPI = dongtingBaseURL1 + "jsonadconfig/getzixun";
 
     private static String getParameters(Context context) {
-        return "?application=" + "LIFE_COUNTDOWN"
+        return "?application=" + "ROOT"
                 + "&apppackage=" + PublicUtil.getAppPackage(context)
                 + "&appversion=" + PublicUtil.getVersionCode(context)
                 + "&appmarket=" + PublicUtil.metadata(context, "UMENG_CHANNEL")
                 + "&agencychannel=" + PublicUtil.metadata(context, "AGENCY_CHANNEL");
     }
-
 
     public static void initConfigJson(Context context) {
 
@@ -609,76 +652,51 @@ public class AppConfig {
         String ConfigJson = "";
         SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
         ConfigJson = getConfigJson(configAPI + getParameters(context));
+        if (TextUtils.isEmpty(ConfigJson))
+            ConfigJson = getConfigJson(String.format(configbaseURL1, APPKEY) + "config.json");
+        if (TextUtils.isEmpty(ConfigJson)) {
+            ConfigJson = getConfigJson(String.format(configbaseURL2, APPKEY) + "config.json");
+        }
+        if (TextUtils.isEmpty(ConfigJson)) {
+            ConfigJson = getConfigJson(String.format(configbaseURL3, APPKEY) + "config.json");
+        }
         if (!TextUtils.isEmpty(ConfigJson)) {
             SharedPreferences.Editor editor = mSettings.edit();
             editor.putString("ConfigJson", ConfigJson);
             editor.apply();
+            initConfigBean(context, ConfigJson);
+        } else {
+            initConfigBean(context, getPreferencesJson(context, KEY_CONFIG));
         }
 
-        initConfigBean(context);
     }
 
     public static void initPublicConfigJson(Context context) {
         String ConfigJson = "";
         SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
         ConfigJson = getPubConfigJson(publicAPI + getParameters(context));
-        if (!TextUtils.isEmpty(ConfigJson)) {
+        if (TextUtils.isEmpty(ConfigJson)) {
+            ConfigJson = getPubConfigJson(baseURL1 + "publicconfig.json");
+        }
+        if (TextUtils.isEmpty(ConfigJson)) {
+            ConfigJson = getPubConfigJson(baseURL2 + "publicconfig.json");
+        }
+        if (TextUtils.isEmpty(ConfigJson)) {
+            ConfigJson = getPubConfigJson(baseURL3 + "publicconfig.json");
+        }
+        if (!ConfigJson.isEmpty()) {
             SharedPreferences.Editor editor = mSettings.edit();
-            editor.putString("publicConfigJson", ConfigJson);
+            editor.putString(KEY_PUBLIC, ConfigJson);
             editor.apply();
+            initPublicConfigBean(context, ConfigJson);
+        } else {
+            ConfigJson = getPreferencesJson(context, KEY_PUBLIC);
+            initPublicConfigBean(context, ConfigJson);
         }
-
-        initPublicConfigBean(context);
     }
 
-    public static void initselfadJson(Context context) {
+    public static void initConfigBean(Context context, String ConfigJson) {
         if (context == null) return;
-        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
-
-        if (publicConfigBean != null && !"".equals(publicConfigBean.selfadVersion) && !publicConfigBean.selfadVersion.equals(mSettings.getString("selfadVersion", ""))) {//需要更新
-            String SelfadJson = getSelfadJson(selfadAPI + getParameters(context));
-
-            if (!TextUtils.isEmpty(SelfadJson)) {
-                SharedPreferences.Editor editor = mSettings.edit();
-                editor.putString("SelfadJson", SelfadJson);
-                editor.putString("selfadVersion", publicConfigBean.selfadVersion);
-                editor.apply();
-            }
-
-        }
-        initselfadBeans(context);
-    }
-
-    private static void initzixunJson(Context context) {
-        if (context == null) return;
-        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
-        String SelfadJson = "";
-        if (publicConfigBean != null && !TextUtils.isEmpty(publicConfigBean.zixunVersion) && !publicConfigBean.zixunVersion.equals(mSettings.getString("zixunVersion", ""))) {//需要更新
-            SelfadJson = getZixunJson(zixunAPI + getParameters(context));
-            if (!TextUtils.isEmpty(SelfadJson)) {
-                SharedPreferences.Editor editor = mSettings.edit();
-                editor.putString("zixunJson", SelfadJson);
-                editor.putString("zixunVersion", publicConfigBean.zixunVersion);
-                editor.apply();
-            }
-        }
-        if (TextUtils.isEmpty(SelfadJson)) {
-            SelfadJson = getZixunJsonFromAssets(context, "zixun.json");
-            if (!TextUtils.isEmpty(SelfadJson)) {
-                SharedPreferences.Editor editor = mSettings.edit();
-                editor.putString("zixunJson", SelfadJson);
-                editor.putString("zixunVersion", "");
-                editor.apply();
-            }
-        }
-
-        initZixunBeans(context);
-    }
-
-    public static void initConfigBean(Context context) {
-        if (context == null) return;
-        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
-        String ConfigJson = mSettings.getString("ConfigJson", "");
         try {
             ConfigBean bean1 = getConfigBean(ConfigJson);
             configBean = bean1;
@@ -687,10 +705,13 @@ public class AppConfig {
         }
     }
 
-    public static void initPublicConfigBean(Context context) {
-        if (context == null) return;
+    public static String getPreferencesJson(Context context, String key) {
         SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
-        String ConfigJson = mSettings.getString("publicConfigJson", "");
+        return mSettings.getString(key, "");
+    }
+
+    public static void initPublicConfigBean(Context context, String ConfigJson) {
+        if (context == null) return;
         try {
             PublicConfigBean bean1 = getpublicConfigBean(ConfigJson);
             publicConfigBean = bean1;
@@ -703,7 +724,7 @@ public class AppConfig {
 
         String VideoJson = "";
         try {
-            VideoJson = HttpUtil.getJson(url);
+            VideoJson = new HttpUtil().getJson(url);
             List<VideoBean> currentVideoBeans = getVideoBean(VideoJson);
             if (currentVideoBeans.size() == 0) {
                 VideoJson = "";
@@ -713,6 +734,46 @@ public class AppConfig {
             VideoJson = "";
         }
         return VideoJson;
+    }
+
+    public static void initVideoJson(Context context) {
+        if (context == null) return;
+        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
+        if (publicConfigBean != null && !"".equals(publicConfigBean.onlineVideoParseVersion) && !publicConfigBean.onlineVideoParseVersion.equals(mSettings.getString("onlineVideoParseVersion", ""))) {//需要更新videosourceVersion
+            String VideoJson = getVideoJson(baseURL1 + "video/video.json");
+            if (VideoJson.isEmpty()) {
+                VideoJson = getVideoJson(baseURL2 + "video/video.json");
+            }
+            if (VideoJson.isEmpty()) {
+                VideoJson = getVideoJson(baseURL3 + "video/video.json");
+            }
+
+            if (!VideoJson.isEmpty()) {
+                SharedPreferences.Editor editor = mSettings.edit();
+                editor.putString("VideoJson", VideoJson);
+                editor.putString("onlineVideoParseVersion", publicConfigBean.onlineVideoParseVersion);
+                editor.apply();
+            }
+
+        }
+        initVideoBean(context);
+    }
+
+    public static void initVideoBean(Context context) {
+        if (context == null) return;
+        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
+
+        String VideoJson = mSettings.getString("VideoJson", "");
+        try {
+            List<VideoBean> currentVideoBeans = getVideoBean(VideoJson);
+            if (currentVideoBeans.size() == 0) {
+                VideoJson = "";
+
+            }
+            videoBeans = currentVideoBeans;
+        } catch (Exception e) {
+
+        }
     }
 
     private static String getSelfadJson(String url) {
@@ -766,10 +827,39 @@ public class AppConfig {
         return SelfadJson;
     }
 
-    private static void initselfadBeans(Context context) {
+    public static void initselfadJson(Context context) {
         if (context == null) return;
         SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
-        String SelfadJson = mSettings.getString("SelfadJson", "");
+
+        if (publicConfigBean != null && !"".equals(publicConfigBean.selfadVersion) && !publicConfigBean.selfadVersion.equals(mSettings.getString("selfadVersion", ""))) {//需要更新
+            String SelfadJson = getSelfadJson(selfadAPI + getParameters(context));
+
+            if (TextUtils.isEmpty(SelfadJson))
+                SelfadJson = getSelfadJson(baseURL1 + "selfad/selfad.json");
+
+            if (SelfadJson.isEmpty()) {
+                SelfadJson = getSelfadJson(baseURL2 + "selfad/selfad.json");
+            }
+            if (SelfadJson.isEmpty()) {
+                SelfadJson = getSelfadJson(baseURL3 + "selfad/selfad.json");
+            }
+
+
+            if (!SelfadJson.isEmpty()) {
+                SharedPreferences.Editor editor = mSettings.edit();
+                editor.putString("SelfadJson", SelfadJson);
+                editor.putString("selfadVersion", publicConfigBean.selfadVersion);
+                editor.apply();
+                initselfadBeans(context, SelfadJson);
+            } else {
+                initselfadBeans(context, getPreferencesJson(context, KEY_SELF));
+            }
+        }
+
+    }
+
+    private static void initselfadBeans(Context context, String SelfadJson) {
+        if (context == null) return;
         try {
             List<ADBean> currentSelfAdBeans = getSelfAdBeans(SelfadJson);
             if (currentSelfAdBeans.size() == 0) {
@@ -779,6 +869,41 @@ public class AppConfig {
         } catch (Exception e) {
 
         }
+    }
+
+    private static void initzixunJson(Context context) {
+        if (context == null) return;
+        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
+        String SelfadJson = "";
+        if (publicConfigBean != null && !TextUtils.isEmpty(publicConfigBean.zixunVersion) && !publicConfigBean.zixunVersion.equals(mSettings.getString("zixunVersion", ""))) {//需要更新
+            SelfadJson = getZixunJson(zixunAPI + getParameters(context));
+            if (TextUtils.isEmpty(SelfadJson)) {
+                SelfadJson = getZixunJson(baseURL1 + "zixun/zixun.json");
+            }
+            if (TextUtils.isEmpty(SelfadJson)) {
+                SelfadJson = getZixunJson(baseURL2 + "zixun/zixun.json");
+            }
+            if (TextUtils.isEmpty(SelfadJson)) {
+                SelfadJson = getZixunJson(baseURL3 + "zixun/zixun.json");
+            }
+            if (!TextUtils.isEmpty(SelfadJson)) {
+                SharedPreferences.Editor editor = mSettings.edit();
+                editor.putString("zixunJson", SelfadJson);
+                editor.putString("zixunVersion", publicConfigBean.zixunVersion);
+                editor.apply();
+            }
+        }
+        if (TextUtils.isEmpty(SelfadJson)) {
+            SelfadJson = getZixunJsonFromAssets(context, "zixun.json");
+            if (!TextUtils.isEmpty(SelfadJson)) {
+                SharedPreferences.Editor editor = mSettings.edit();
+                editor.putString("zixunJson", SelfadJson);
+                editor.putString("zixunVersion", "");
+                editor.apply();
+            }
+        }
+
+        initZixunBeans(context);
     }
 
     private static void initZixunBeans(Context context) {
@@ -796,6 +921,144 @@ public class AppConfig {
         }
     }
 
+    private static String getWXGZHJson(String url) {
+        String wxgzhJson = "";
+        try {
+            wxgzhJson = HttpUtil.getJson(url);
+            List<WXGZHBean> currentSelfAdBeans = getWXGZHBeans(wxgzhJson);
+            if (currentSelfAdBeans.size() == 0) {
+                wxgzhJson = "";
+            }
+        } catch (IOException e) {
+            wxgzhJson = "";
+        }
+        return wxgzhJson;
+    }
+
+    public static void initwxgzhJson(Context context) {
+        if (context == null) return;
+        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
+        if (publicConfigBean != null && !"".equals(publicConfigBean.wxgzhversion) && !publicConfigBean.wxgzhversion.equals(mSettings.getString("wxgzhversion", ""))) {//需要更新
+            String wxgzhJson = getWXGZHJson(baseURL1 + "wxgzh/wxgzh.json");
+            if (wxgzhJson.isEmpty()) {
+                wxgzhJson = getWXGZHJson(baseURL2 + "wxgzh/wxgzh.json");
+            }
+            if (wxgzhJson.isEmpty()) {
+                wxgzhJson = getWXGZHJson(baseURL3 + "wxgzh/wxgzh.json");
+            }
+
+            if (!wxgzhJson.isEmpty()) {
+                List<WXGZHBean> currentSelfAdBeans = getWXGZHBeans(wxgzhJson);
+                for (WXGZHBean bean : currentSelfAdBeans) {
+                    initGZHPic(bean);
+                }
+                SharedPreferences.Editor editor = mSettings.edit();
+                editor.putString("wxgzhJson", wxgzhJson);
+                editor.putString("wxgzhversion", publicConfigBean.wxgzhversion);
+                editor.apply();
+            }
+        }
+        String wxgzhJson = mSettings.getString("wxgzhJson", "");
+        List<WXGZHBean> currentSelfAdBeans = getWXGZHBeans(wxgzhJson);
+        for (WXGZHBean bean : currentSelfAdBeans) {
+            // Boolean isSuccess = true;//成功与否不重要，不成功的不用就是
+            if (!new File(GZHPath + bean.id + ".jpg").exists()) {//如果文件不存在
+                initGZHPic(bean);
+            }
+        }
+        initwxgzhBeans(context);//初始化之后需要判断图片是否存在
+    }
+
+    private static void initGZHPic(WXGZHBean bean) {
+
+        try {
+            downloadgzhjpg(bean, bean.thumb);
+        } catch (Exception ethumb) {//这一步则表示下载失败
+            deleteFile(GZHPath + bean.id + ".jpg");
+
+            try {
+                downloadgzhjpg(bean, baseURL1 + "wxgzh/" + bean.id + ".jpg");
+            } catch (Exception e1) {
+                deleteFile(GZHPath + bean.id + ".jpg");
+                try {
+                    downloadgzhjpg(bean, baseURL2 + "wxgzh/" + bean.id + ".jpg");
+                } catch (Exception e2) {
+                    deleteFile(GZHPath + bean.id + ".jpg");
+                    try {
+                        downloadgzhjpg(bean, baseURL3 + "wxgzh/" + bean.id + ".jpg");
+                    } catch (Exception e3) {//这一步则表示下载失败
+                        // isSuccess = false;
+                        deleteFile(GZHPath + bean.id + ".jpg");
+                    }
+                }
+            }
+        }
+    }
+
+    public static void downloadgzhjpg(WXGZHBean bean, String jpgurl) throws Exception {
+        deleteFile(GZHPath + bean.id + ".jpg");// 如果存在就先删除
+        URL url = new URL(jpgurl);
+        URLConnection con = url.openConnection();
+        int contentLength = con.getContentLength();
+        InputStream is = con.getInputStream();
+        byte[] bs = new byte[1024];
+        int len;
+        OutputStream os = new FileOutputStream(GZHPath + bean.id + ".jpg");
+        while ((len = is.read(bs)) != -1) {
+            os.write(bs, 0, len);
+        }
+        os.close();
+        is.close();
+
+    }
+
+    public static void initwxgzhBeans(Context context) {
+        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
+        String wxgzhJson = mSettings.getString("wxgzhJson", "");
+        try {
+            List<WXGZHBean> currentSelfAdBeans = getWXGZHBeans(wxgzhJson);
+            if (currentSelfAdBeans.size() == 0) {
+                wxgzhJson = "";
+
+            }
+            wxgzhBeans = currentSelfAdBeans;
+        } catch (Exception e) {
+
+        }
+    }
+
+    public static void initvideosourceVersion(Context context) {
+        SharedPreferences mSettings = context.getSharedPreferences("AppConfig", Context.MODE_PRIVATE);
+        Boolean isneedUpdate = publicConfigBean != null && !"".equals(publicConfigBean.videosourceVersion) && !publicConfigBean.videosourceVersion.equals(mSettings.getString("videosourceVersion", ""));
+        if (isneedUpdate || (!(new File(youkulibPath).exists()) && publicConfigBean != null && !"".equals(publicConfigBean.videosourceVersion))) {//需要更新videosourceVersion 或者没有在目录下找到该jar,但是获取
+            Boolean isSuccess = true;
+            try {
+                downloadjar(baseURL1 + "video/videoparse.jar", youkulibPath);
+            } catch (Exception e1) {
+                try {
+                    downloadjar(baseURL2 + "video/videoparse.jar", youkulibPath);
+                } catch (Exception e2) {
+                    try {
+                        downloadjar(baseURL3 + "video/videoparse.jar", youkulibPath);
+                    } catch (Exception e3) {//这一步则表示下载失败
+                        isSuccess = false;
+                    }
+                }
+            }
+            if (isSuccess) {
+
+                SharedPreferences.Editor editor = mSettings.edit();
+                editor.putString("videosourceVersion", publicConfigBean.videosourceVersion);
+                editor.apply();
+            } else {
+                deleteFile(youkulibPath);
+                SharedPreferences.Editor editor = mSettings.edit();
+                editor.putString("videosourceVersion", "");
+                editor.apply();
+            }
+        }
+    }
+
     public static void deleteFile(String filePath) {
         try {
             File file = new File(filePath);
@@ -804,12 +1067,78 @@ public class AppConfig {
             }
         } catch (Exception ex) {
         }
+    }
+
+    public static void downloadjar(String jarUrl, String savePath) throws Exception {
+        deleteFile(savePath);// 如果存在就先删除
+        boolean mkdirs = new File(savePath).mkdirs();
+        Log.e("downloadjar", mkdirs ? "创建下载目录成功" : "创建下载目录失败");
+        URL url = new URL(jarUrl);
+        URLConnection con = url.openConnection();
+        int contentLength = con.getContentLength();
+        InputStream is = con.getInputStream();
+        byte[] bs = new byte[1024];
+        int len;
+        OutputStream os = new FileOutputStream(savePath);
+        while ((len = is.read(bs)) != -1) {
+            os.write(bs, 0, len);
+        }
+        os.flush();
+        os.close();
+        is.close();
 
     }
 
-
     private static boolean haveKey(JSONObject jo, String key) {
         return jo.has(key) && !jo.isNull(key);
+    }
+
+
+    /*
+     *
+     * 是否展示在线视频，针对底部的channel
+     * */
+    public static boolean isShowOnlineVideo() {
+        if (configBean == null) {
+            return false;
+        }
+        for (String version :
+                configBean.noaddvideochannel.split(",")) {
+            if (version.equals(versioncode)) {
+                return false;
+            }
+
+        }
+        return true;
+    }
+
+    public static boolean isShowWXGZH() {
+        if (configBean == null) {
+            return false;
+        }
+
+        for (String version :
+                configBean.nogzhchannel.split(",")) {
+            if (version.equals(versioncode)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean isShowMeinv() {
+        if (configBean == null) {
+            return false;
+        }
+        if (TextUtils.isEmpty(configBean.nomeinvchannel))
+            return false;
+        for (String version :
+                configBean.nomeinvchannel.split(",")) {
+            if (version.equals(versioncode)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -821,6 +1150,8 @@ public class AppConfig {
         if (configBean == null) {
             return false;
         }
+        if (TextUtils.isEmpty(configBean.nocpuadchannel))
+            return false;
         for (String version :
                 configBean.nocpuadchannel.split(",")) {
             if (version.equals(versioncode)) {
@@ -830,13 +1161,17 @@ public class AppConfig {
         return true;
     }
 
-
-    public static boolean isFengxiang() {
+    /**
+     * 是否显示支付宝支付
+     *
+     * @return
+     */
+    public static boolean isShowAliPay() {
         if (configBean == null) {
-            return false;
+            return true;
         }
         for (String version :
-                configBean.nofenxiang.split(",")) {
+                configBean.noalipaychannel.split(",")) {
             if (version.equals(versioncode)) {
                 return false;
             }
@@ -844,12 +1179,46 @@ public class AppConfig {
         return true;
     }
 
-    public static boolean isSearch() {
+    public static boolean isRootPay() {
         if (configBean == null) {
             return false;
         }
+        if (TextUtils.isEmpty(configBean.norootpaychannel))
+            return false;
+        for (String version : configBean.norootpaychannel.split(",")) {
+            if (version.equals(versioncode)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 是否显示微信支付
+     *
+     * @return
+     */
+    public static boolean isShowWeixinPay() {
+        if (configBean == null) {
+            return true;
+        }
         for (String version :
-                configBean.nosearch.split(",")) {
+                configBean.noweixinpaychannel.split(",")) {
+            if (version.equals(versioncode)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean isFengxiang() {
+        if (configBean == null) {
+            return false;
+        }
+        if (TextUtils.isEmpty(configBean.nofenxiang))
+            return false;
+        for (String version :
+                configBean.nofenxiang.split(",")) {
             if (version.equals(versioncode)) {
                 return false;
             }
@@ -861,88 +1230,9 @@ public class AppConfig {
         if (configBean == null) {
             return false;
         }
-        if (TextUtils.isEmpty(configBean.nohaoping)) {
+        if (TextUtils.isEmpty(configBean.nohaoping))
             return false;
-        }
         for (String version : configBean.nohaoping.split(",")) {
-            if (version.equals(versioncode)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public static boolean isShowShiping() {
-        if (configBean == null) {//如果configbean都没有获取到
-            return false;
-        }
-        if (TextUtils.isEmpty(configBean.noshipingadchannel)) {
-            return false;
-        }
-        for (String version : configBean.noshipingadchannel.split(",")) {
-            if (version.equals(versioncode)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public static boolean isShowBanner() {
-        if (!isShowBanner)
-            return false;
-
-        if (configBean == null) {
-            return false;
-        }
-        if (TextUtils.isEmpty(configBean.noadbannerchannel)) {
-            return false;
-        }
-        for (String version : configBean.noadbannerchannel.split(",")) {
-            if (version.equals(versioncode)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public static boolean isShowKP() {
-        if (configBean == null) {//如果configbean都没有获取到
-            return false;
-        }
-        if (TextUtils.isEmpty(configBean.noadkpchannel)) {
-            return false;
-        }
-        for (String version : configBean.noadkpchannel.split(",")) {
-            if (version.equals(versioncode)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public static boolean isShowTP() {
-        if (configBean == null) {//如果configbean都没有获取到
-            return false;
-        }
-        if (TextUtils.isEmpty(configBean.noadtpchannel)) {
-            return false;
-        }
-        for (String version : configBean.noadtpchannel.split(",")) {
-            if (version.equals(versioncode)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public static boolean isShowCP() {
-        if (configBean == null) {
-            return false;
-        }
-        if (TextUtils.isEmpty(configBean.noadcpchannel)) {
-            return false;
-        }
-        for (String version : configBean.noadcpchannel.split(",")) {
             if (version.equals(versioncode)) {
                 return false;
             }
@@ -962,13 +1252,89 @@ public class AppConfig {
         return true;
     }
 
+    /**
+     * 是否展示视频广告
+     *
+     * @return
+     */
+    public static boolean isShowShipng() {
+        if (configBean == null) {
+            return false;
+        }
+        if (TextUtils.isEmpty(configBean.noshipingadchannel))
+            return false;
+        for (String version : configBean.noshipingadchannel.split(",")) {
+            if (version.equals(versioncode)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean isShowBanner() {
+        if (!isShowBanner)
+            return false;
+        if (configBean == null) {
+            return false;
+        }
+        if (TextUtils.isEmpty(configBean.noadbannerchannel))
+            return false;
+        for (String version : configBean.noadbannerchannel.split(",")) {
+            if (version.equals(versioncode)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean isShowKP() {
+        if (configBean == null) {//如果configbean都没有获取到
+            return false;
+        }
+        if (TextUtils.isEmpty(configBean.noadkpchannel))
+            return false;
+        for (String version : configBean.noadkpchannel.split(",")) {
+            if (version.equals(versioncode)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean isShowTP() {
+        if (configBean == null) {//如果configbean都没有获取到
+            return false;
+        }
+        if (TextUtils.isEmpty(configBean.noadtpchannel))
+            return false;
+        for (String version : configBean.noadtpchannel.split(",")) {
+            if (version.equals(versioncode)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static boolean isShowCP() {
+        if (configBean == null) {
+            return false;
+        }
+        if (TextUtils.isEmpty(configBean.noadcpchannel))
+            return false;
+        for (String version : configBean.noadcpchannel.split(",")) {
+            if (version.equals(versioncode)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static boolean isNeedPay() {
         if (configBean == null) {
             return false;
         }
-        if (TextUtils.isEmpty(configBean.nopaychannel)) {
+        if (TextUtils.isEmpty(configBean.nopaychannel))
             return false;
-        }
         for (String version : configBean.nopaychannel.split(",")) {
             if (version.equals(versioncode)) {
                 return false;
@@ -977,41 +1343,12 @@ public class AppConfig {
         return true;
     }
 
-    public static boolean isGreyTheme() {
-        if (configBean == null) {
-            return false;
-        }
-        if (TextUtils.isEmpty(configBean.greythemechannel)) {
-            return false;
-        }
-        for (String version : configBean.greythemechannel.split(",")) {
-            if (version.equals(versioncode)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-
-    public static boolean isContainer(String url) {
-        if (TextUtils.isEmpty(url)) return false;
-        if (AppConfig.publicConfigBean != null && !TextUtils.isEmpty(AppConfig.publicConfigBean.regionurl)) {
-            String[] mConfigUrl = AppConfig.publicConfigBean.regionurl.split(",");
-            for (int i = 0; i < mConfigUrl.length; i++) {
-                String s = mConfigUrl[i];
-                if (url.contains(s)) {
-                    return true;
-                }
-
-            }
-        }
-        return false;
-    }
-
     public static boolean isFirstFreeUse() {
         if (configBean == null) {
             return false;
         }
+        if (TextUtils.isEmpty(configBean.isfirstfreeusechannel))
+            return false;
         for (String version : configBean.isfirstfreeusechannel.split(",")) {
             if (version.equals(versioncode)) {
                 return true;
@@ -1024,6 +1361,8 @@ public class AppConfig {
         if (configBean == null) {
             return false;
         }
+        if (TextUtils.isEmpty(configBean.showselflogochannel))
+            return false;
         for (String version : configBean.showselflogochannel.split(",")) {
             if (version.equals(versioncode)) {
                 return true;
@@ -1036,6 +1375,8 @@ public class AppConfig {
         if (configBean == null) {
             return false;
         }
+        if (TextUtils.isEmpty(configBean.noshowdschannel))
+            return false;
         for (String version : configBean.noshowdschannel.split(",")) {
             if (version.equals(versioncode)) {
                 return false;
@@ -1048,9 +1389,6 @@ public class AppConfig {
         if (configBean == null) {
             return false;
         }
-        if (TextUtils.isEmpty(configBean.noupdatechannel)) {
-            return false;
-        }
         for (String version : configBean.noupdatechannel.split(",")) {
             if (version.equals(versioncode)) {
                 return false;
@@ -1058,6 +1396,90 @@ public class AppConfig {
         }
 
         return true;
+    }
+
+    public static boolean isShowSelfAD() {
+        if (configBean == null) {
+            return false;
+        }
+        if (TextUtils.isEmpty(configBean.noselfadchannel))
+            return false;
+        for (String version : configBean.noselfadchannel.split(",")) {
+            if (version.equals(versioncode)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    //是否使用第三方链接对当前播放地址进行处理，针对vip等情况
+    public static boolean isNoadVideoweb(String platform) {
+        if (configBean == null || TextUtils.isEmpty(platform)) {
+            return false;
+        }
+        for (String str : configBean.noadVideowebchannel.split(",")) {
+            String[] a = str.split(":");
+            if (a.length == 2) {
+                String platformItem = a[0];
+                String versionItem = a[1];
+                if (platform.equals(platformItem) && versioncode.equals(versionItem)) {//平台与版本对应了，因为渠道已经选定了
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    //获取第三方去广告的基地址
+    public static String getnoadVideowebBaseUrl(String platform, String url) {
+        if (videoBeans == null || videoBeans.size() == 0 || TextUtils.isEmpty(platform)) {
+            return url;
+        }
+        if (!isNoadVideoweb(platform)) {
+            return url;
+        }
+        for (VideoBean bean : AppConfig.videoBeans) {
+            if (bean.platform.equals(platform)) {
+                if (bean.noadVideowebBaseUrl.contains("%s")) {
+                    return String.format(bean.noadVideowebBaseUrl, url);
+                } else {
+                    return url;
+                }
+            }
+        }
+        return url;
+    }
+
+    //是否通过浏览器进行播放，这里涉及两个开关，一个在videojson里面（总开关），一个在config里面（渠道开关）
+    public static boolean isPlayOnweb(String platform) {
+        System.out.println("当前频道:" + platform);
+        if (videoBeans == null || videoBeans.size() == 0 || TextUtils.isEmpty(platform)) {
+            return false;
+        }
+        for (VideoBean bean : AppConfig.videoBeans) {
+            if (bean.platform.equals(platform)) {
+                if ("1".equals(bean.playonbroswer)) //为1则表示用web播放,为0表示总开关没有设置一定要用web播放
+                {
+                    return true;
+                } else {
+                    break;
+                }
+            }
+        }
+        if (configBean == null) {
+            return false;
+        }
+        for (String str : configBean.playonwebchannel.split(",")) {
+            String[] a = str.split(":");
+            if (a.length == 2) {
+                String platformItem = a[0];
+                String versionItem = a[1];
+                if (platform.equals(platformItem) && versioncode.equals(versionItem)) {//平台与版本对应了，因为渠道已经选定了
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public static String getKPType() {
@@ -1079,26 +1501,9 @@ public class AppConfig {
 
     }
 
-    public static String getShipingType() {
-        if (configBean == null)
-            return "";
-        for (String str : configBean.shipingtype.split(",")) {
-            String[] a = str.split(":");
-            if (a.length == 2) {
-                String versionItem = a[0];
-                String adNameItem = a[1];
-                if (versioncode.equals(versionItem))//平台与版本对应了，因为渠道已经选定了
-                    return adNameItem;
-
-            }
-        }
-        return "csj";
-
-    }
-
     public static String getTPType() {
         if (configBean == null) {
-            return "csj";
+            return "gdtmb";
         }
         for (String str : configBean.tptype.split(",")) {
             String[] a = str.split(":");
@@ -1111,7 +1516,7 @@ public class AppConfig {
 
             }
         }
-        return "csj";
+        return "gdtmb";
 
     }
 
@@ -1134,6 +1539,24 @@ public class AppConfig {
 
     }
 
+    public static int getNavigationButtonId() {
+        if (configBean == null) {
+            return 2147479817;
+        }
+        for (String str : configBean.navigationid.split(",")) {
+            String[] a = str.split(":");
+            if (a.length == 2) {
+                String versionItem = a[0];
+                String adNameItem = a[1];
+                if (versioncode.equals(versionItem)) {//平台与版本对应了，因为渠道已经选定了
+                    return Integer.parseInt(adNameItem);
+                }
+            }
+        }
+        return 2147479817;
+
+    }
+
     public static String getBannerType() {
         if (configBean == null) {
             return "csj";
@@ -1153,14 +1576,27 @@ public class AppConfig {
 
     }
 
-    public static String getBaiduMapNO() {
-        return getBaiduMapNO("");
+
+    public static String getShipingType() {
+        if (configBean == null) {
+            return "";
+        }
+        for (String str : configBean.shipingtype.split(",")) {
+            String[] a = str.split(":");
+            if (a.length == 2) {
+                String versionItem = a[0];
+                String adNameItem = a[1];
+                if (versioncode.equals(versionItem)) {//平台与版本对应了，因为渠道已经选定了
+                    return adNameItem;
+                }
+
+            }
+        }
+        return "csj";
+
     }
 
-    public static String getBaiduMapNO(String defaultMapNo) {
-        if(!TextUtils.isEmpty(defaultMapNo))
-            return defaultMapNo;
-
+    public static String getBaiduMapNO() {
         if (configBean == null) {
             return "©2022 高德软件有限公司 GS(2021)6375号 - 甲测资字11111093";
 //            return "北京百度网讯科技有限公司\n©2022 Baidu - GS(2021)6026号 - 甲测资字11111342";
@@ -1178,6 +1614,7 @@ public class AppConfig {
         }
         return "©2022 高德软件有限公司 GS(2021)6375号 - 甲测资字11111093";
 //        return "北京百度网讯科技有限公司\n©2022 Baidu - GS(2021)6026号 - 甲测资字11111342";
+
     }
 
     private static List<Integer> GetRandomList(int size, int max) {
@@ -1192,6 +1629,17 @@ public class AppConfig {
         }
         Collections.sort(list);
         return list;
+    }
+
+    public static Boolean ISInistallSelfAD(String packageName) {
+        for (ADBean selfad : selfadBeans) {//过滤掉已经安装了的app
+            if (TextUtils.equals(packageName, selfad.getAd_packagename())) {
+                return true;
+            }
+
+        }
+        return false;
+
     }
 
     /*
@@ -1215,17 +1663,305 @@ public class AppConfig {
                 selfADs.add(ok_selfadBeans.get(i));
             }
         }
-//        for (ADBean bean : selfADs) {
-//            Map<String, String> map_ekv = new HashMap<String, String>();
-//            map_ekv.put("show", bean.getAd_name());
-//        }
+        for (ADBean bean : selfADs) {
+            Map<String, String> map_ekv = new HashMap<String, String>();
+            map_ekv.put("show", bean.getAd_name());
+            MobclickAgent.onEvent(context, event_id, map_ekv);
+        }
         return selfADs;
     }
 
+//    public static DownloadInfo adToDownloadInfo(ADBean adbean) {
+//        DownloadInfo downloadinfo = new DownloadInfo();
+//        downloadinfo.setAd_name(adbean.getAd_name());
+//        downloadinfo.setAd_description(adbean.getAd_description());
+//        downloadinfo.setAd_iconurl(adbean.getAd_iconurl());
+//        downloadinfo.setAd_thumbnail(adbean.getAd_thumbnail());
+//        downloadinfo.setAd_iconscal(adbean.getAd_iconscal());
+//        downloadinfo.setAd_thumbnailscal(adbean.getAd_thumbnailscal());
+//        downloadinfo.setAd_thumbnail(adbean.getAd_thumbnail());
+//        downloadinfo.setAd_apkurl(adbean.getAd_apkurl());
+//        downloadinfo.setAd_packagename(adbean.getAd_packagename());
+//        downloadinfo.setAd_isConfirm(adbean.isAd_isConfirm());
+//        downloadinfo.setAd_type(adbean.getAd_type());
+//        downloadinfo.setAd_versioncode(adbean.getAd_versioncode());
+//        downloadinfo.setAd_platform(adbean.getAd_platform());
+//        return downloadinfo;
+//    }
+
+//    public static HistoryBean adToHistoryBean(ADBean adbean) {
+//        HistoryBean downloadinfo = new HistoryBean();
+//        downloadinfo.setAd_name(adbean.getAd_name());
+//        downloadinfo.setAd_description(adbean.getAd_description());
+//        downloadinfo.setAd_iconurl(adbean.getAd_iconurl());
+//        downloadinfo.setAd_thumbnail(adbean.getAd_thumbnail());
+//        downloadinfo.setAd_iconscal(adbean.getAd_iconscal());
+//        downloadinfo.setAd_thumbnailscal(adbean.getAd_thumbnailscal());
+//        downloadinfo.setAd_thumbnail(adbean.getAd_thumbnail());
+//        downloadinfo.setAd_apkurl(adbean.getAd_apkurl());
+//        downloadinfo.setAd_packagename(adbean.getAd_packagename());
+//        downloadinfo.setAd_isConfirm(adbean.isAd_isConfirm());
+//        downloadinfo.setAd_type(adbean.getAd_type());
+//        downloadinfo.setAd_versioncode(adbean.getAd_versioncode());
+//        downloadinfo.setAd_platform(adbean.getAd_platform());
+//        return downloadinfo;
+//    }
+
+    //    public static FavoriteBean adToFavoriteBean(ADBean adbean) {
+//        FavoriteBean downloadinfo = new FavoriteBean();
+//        downloadinfo.setAd_name(adbean.getAd_name());
+//        downloadinfo.setAd_description(adbean.getAd_description());
+//        downloadinfo.setAd_iconurl(adbean.getAd_iconurl());
+//        downloadinfo.setAd_thumbnail(adbean.getAd_thumbnail());
+//        downloadinfo.setAd_iconscal(adbean.getAd_iconscal());
+//        downloadinfo.setAd_thumbnailscal(adbean.getAd_thumbnailscal());
+//        downloadinfo.setAd_thumbnail(adbean.getAd_thumbnail());
+//        downloadinfo.setAd_apkurl(adbean.getAd_apkurl());
+//        downloadinfo.setAd_packagename(adbean.getAd_packagename());
+//        downloadinfo.setAd_isConfirm(adbean.isAd_isConfirm());
+//        downloadinfo.setAd_type(adbean.getAd_type());
+//        downloadinfo.setAd_versioncode(adbean.getAd_versioncode());
+//        downloadinfo.setAd_platform(adbean.getAd_platform());
+//        return downloadinfo;
+//    }
+//
+    public static ShowListBean adToShowListBean(ADBean adbean) {
+        ShowListBean videoDataBean = new ShowListBean();
+        if (adbean == null) return videoDataBean;
+        videoDataBean.setAd_name(adbean.getAd_name());
+        videoDataBean.setAd_description(adbean.getAd_description());
+        videoDataBean.setAd_iconurl(adbean.getAd_iconurl());
+        videoDataBean.setAd_thumbnail(adbean.getAd_thumbnail());
+        videoDataBean.setAd_iconscal(adbean.getAd_iconscal());
+        videoDataBean.setAd_thumbnailscal(adbean.getAd_thumbnailscal());
+        videoDataBean.setAd_apkurl(adbean.getAd_apkurl());
+        videoDataBean.setAd_packagename(adbean.getAd_packagename());
+        videoDataBean.setAd_isConfirm(adbean.isAd_isConfirm());
+        videoDataBean.setAd_type(adbean.getAd_type());
+        videoDataBean.setAd_versioncode(adbean.getAd_versioncode());
+        videoDataBean.setAd_platform(adbean.getAd_platform());
+        return videoDataBean;
+    }
+
+    public static MainListBean adToShowListBean2(ADBean adbean) {
+        MainListBean videoDataBean = new MainListBean();
+        if (adbean == null) return videoDataBean;
+        videoDataBean.setAd_name(adbean.getAd_name());
+        videoDataBean.setAd_description(adbean.getAd_description());
+        videoDataBean.setAd_iconurl(adbean.getAd_iconurl());
+        videoDataBean.setAd_thumbnail(adbean.getAd_thumbnail());
+        videoDataBean.setAd_iconscal(adbean.getAd_iconscal());
+        videoDataBean.setAd_thumbnailscal(adbean.getAd_thumbnailscal());
+        videoDataBean.setAd_apkurl(adbean.getAd_apkurl());
+        videoDataBean.setAd_packagename(adbean.getAd_packagename());
+        videoDataBean.setAd_isConfirm(adbean.isAd_isConfirm());
+        videoDataBean.setAd_type(adbean.getAd_type());
+        videoDataBean.setAd_versioncode(adbean.getAd_versioncode());
+        videoDataBean.setAd_platform(adbean.getAd_platform());
+        return videoDataBean;
+    }
+
+    public static SearchListBean adToSearchListBean(ADBean adbean) {
+        SearchListBean videoDataBean = new SearchListBean();
+        if (adbean == null) return videoDataBean;
+        videoDataBean.setAd_name(adbean.getAd_name());
+        videoDataBean.setAd_description(adbean.getAd_description());
+        videoDataBean.setAd_iconurl(adbean.getAd_iconurl());
+        videoDataBean.setAd_thumbnail(adbean.getAd_thumbnail());
+        videoDataBean.setAd_iconscal(adbean.getAd_iconscal());
+        videoDataBean.setAd_thumbnailscal(adbean.getAd_thumbnailscal());
+        videoDataBean.setAd_apkurl(adbean.getAd_apkurl());
+        videoDataBean.setAd_packagename(adbean.getAd_packagename());
+        videoDataBean.setAd_isConfirm(adbean.isAd_isConfirm());
+        videoDataBean.setAd_type(adbean.getAd_type());
+        videoDataBean.setAd_versioncode(adbean.getAd_versioncode());
+        videoDataBean.setAd_platform(adbean.getAd_platform());
+        return videoDataBean;
+    }
+
+    /*
+     * 将自定义广告随机插入到showbeans里面
+     * */
+    public static List<SearchListBean> getMixSearchListBeans(Context context, List<SearchListBean> historyBeans) {
+        List<SearchListBean> retshowBeans = new ArrayList<SearchListBean>();
+        if (!isShowSelfAD()) {
+            return historyBeans;
+        }
+        int adCount = (int) (historyBeans.size() * AppConfig.decimal);
+        if (adCount == 0 && historyBeans.size() != 0) {
+            adCount = 1;//如果获取到了节目数据至少保证一条
+        }
+        List<ADBean> selfADs = GetSelfADByCount(context, adCount, "yuansheng_count");//随机取adcount条广告
+
+        List<Integer> adIntegerList = GetRandomList(selfADs.size(), historyBeans.size() + selfADs.size());
+        int showBeanIndex = 0, selfADIndex = 0;
+        for (int i = 0; i < historyBeans.size() + selfADs.size(); i++) {
+            if (adIntegerList.contains(i)) {
+
+                retshowBeans.add(AppConfig.adToSearchListBean(selfADs.get(selfADIndex++)));
+            } else {
+
+                retshowBeans.add(historyBeans.get(showBeanIndex++));
+            }
+
+
+        }
+        return retshowBeans;
+    }
+
+    /*
+     * 将自定义广告随机插入到集合
+     * */
+    public static List<MainListBean> getAdMIXShowListBeans(Context context, List<MainListBean> historyBeans) {
+        List<MainListBean> retshowBeans = new ArrayList<>();
+        if (!isShowSelfAD()) {
+            return historyBeans;
+        }
+        int adCount = (int) (historyBeans.size() * AppConfig.decimal);
+        if (adCount == 0 && historyBeans.size() != 0) {
+            adCount = 1;//如果获取到了节目数据至少保证一条
+        }
+        List<ADBean> selfADs = GetSelfADByCount(context, adCount, "yuansheng_count");//随机取adcount条广告
+
+        List<Integer> adIntegerList = GetRandomList(selfADs.size(), historyBeans.size() + selfADs.size());
+        int showBeanIndex = 0, selfADIndex = 0;
+        for (int i = 0; i < historyBeans.size() + selfADs.size(); i++) {
+            if (adIntegerList.contains(i)) {
+
+                retshowBeans.add(AppConfig.adToShowListBean2(selfADs.get(selfADIndex++)));
+            } else {
+
+                retshowBeans.add(historyBeans.get(showBeanIndex++));
+            }
+
+
+        }
+        return retshowBeans;
+    }
+
+    public static List<ShowListBean> getMIXShowListBeans(Context context, List<ShowListBean> historyBeans) {
+        List<ShowListBean> retshowBeans = new ArrayList<ShowListBean>();
+        if (!isShowSelfAD()) {
+            return historyBeans;
+        }
+        int adCount = (int) (historyBeans.size() * AppConfig.decimal);
+        if (adCount == 0 && historyBeans.size() != 0) {
+            adCount = 1;//如果获取到了节目数据至少保证一条
+        }
+        List<ADBean> selfADs = GetSelfADByCount(context, adCount, "yuansheng_count");//随机取adcount条广告
+
+        List<Integer> adIntegerList = GetRandomList(selfADs.size(), historyBeans.size() + selfADs.size());
+        int showBeanIndex = 0, selfADIndex = 0;
+        for (int i = 0; i < historyBeans.size() + selfADs.size(); i++) {
+            if (adIntegerList.contains(i)) {
+
+                retshowBeans.add(AppConfig.adToShowListBean(selfADs.get(selfADIndex++)));
+            } else {
+
+                retshowBeans.add(historyBeans.get(showBeanIndex++));
+            }
+
+
+        }
+        return retshowBeans;
+    }
+//
+//    /*
+//         * 将自定义广告随机插入到showbeans里面
+//         * */
+//    public static List<HistoryBean> getMIXHistoryBeans(Context context, List<HistoryBean> historyBeans) {
+//        if (!isShowSelfAD())
+//            return historyBeans;
+//        int adCount = (int) (historyBeans.size() * AppConfig.decimal);
+//        if (adCount == 0 && historyBeans.size() != 0)
+//            adCount = 1;//如果获取到了节目数据至少保证一条
+//        List<ADBean> selfADs = GetSelfADByCount(context, adCount, "yuansheng_count");//随机取adcount条广告
+//        List<HistoryBean> retshowBeans = new ArrayList<HistoryBean>();
+//        List<Integer> adIntegerList = GetRandomList(selfADs.size(), historyBeans.size() + selfADs.size());
+//        int showBeanIndex = 0, selfADIndex = 0;
+//        for (int i = 0; i < historyBeans.size() + selfADs.size(); i++) {
+//            if (adIntegerList.contains(i)) {
+//
+//                retshowBeans.add(adToHistoryBean(selfADs.get(selfADIndex++)));
+//            } else {
+//
+//                retshowBeans.add(historyBeans.get(showBeanIndex++));
+//            }
+//
+//
+//        }
+//        return retshowBeans;
+//    }
+//
+//    /*
+//      * 将自定义广告随机插入到showbeans里面
+//      * */
+//    public static List<DownloadInfo> getMIXDownloadListBeans(Context context, List<DownloadInfo> downloadInfos) {
+//        if (!isShowSelfAD())
+//            return downloadInfos;
+//        int adCount = (int) (downloadInfos.size() * AppConfig.decimal);
+//        if (adCount == 0 && downloadInfos.size() != 0)
+//            adCount = 1;//如果获取到了节目数据至少保证一条
+//        List<ADBean> selfADs = GetSelfADByCount(context, adCount, "yuansheng_count");//随机取adcount条广告
+//        List<DownloadInfo> retshowBeans = new ArrayList<DownloadInfo>();
+//        List<Integer> adIntegerList = GetRandomList(selfADs.size(), downloadInfos.size() + selfADs.size());
+//        int showBeanIndex = 0, selfADIndex = 0;
+//        for (int i = 0; i < downloadInfos.size() + selfADs.size(); i++) {
+//            if (adIntegerList.contains(i)) {
+//
+//                retshowBeans.add(adToDownloadInfo(selfADs.get(selfADIndex++)));
+//            } else {
+//
+//                retshowBeans.add(downloadInfos.get(showBeanIndex++));
+//            }
+//
+//
+//        }
+//        return retshowBeans;
+//    }
+//
+//    /*
+//    * 将自定义广告随机插入到showbeans里面
+//    * */
+//    public static List<VideoDataListBean> getMIXVideoDataListBeans(Context context, List<VideoDataListBean> showBeans) {
+//        if (!isShowSelfAD())
+//            return showBeans;
+//        int adCount = (int) (showBeans.size() * AppConfig.decimal);
+//        if (adCount == 0 && showBeans.size() != 0)
+//            adCount = 1;//如果获取到了节目数据至少保证一条
+//        List<ADBean> selfADs = GetSelfADByCount(context, adCount, "yuansheng_count");//随机取adcount条广告
+//        List<VideoDataListBean> retshowBeans = new ArrayList<VideoDataListBean>();
+//        List<Integer> adIntegerList = GetRandomList(selfADs.size(), showBeans.size() + selfADs.size());
+//        int showBeanIndex = 0, selfADIndex = 0;
+//        for (int i = 0; i < showBeans.size() + selfADs.size(); i++) {
+//            if (adIntegerList.contains(i)) {
+//
+//                retshowBeans.add(adToVideoDataListBean(selfADs.get(selfADIndex++)));
+//            } else {
+//
+//                retshowBeans.add(showBeans.get(showBeanIndex++));
+//            }
+//
+//
+//        }
+//        return retshowBeans;
+//    }
+
+//    public static ADBean toADBean(VideoDataListBean videoDataListBean) {
+//
+//        ADBean bean = new ADBean();
+//        bean.setAd_name(videoDataListBean.getName());
+//        bean.setAd_versioncode(videoDataListBean.getVersioncode());
+//        bean.setAd_apkurl(videoDataListBean.getApkurl());
+//        bean.setAd_packagename(videoDataListBean.getPackagename());
+//        return bean;
+//    }
+
     public static void openAD(final Context context, final ADBean adbean, String tag) {//如果本条是广告
-        if (context == null || adbean == null) return;
-//        Map<String, String> map_ekv = new HashMap<String, String>();
-//        map_ekv.put("click", adbean.getAd_name());
+        if (adbean == null) return;
+        Map<String, String> map_ekv = new HashMap<String, String>();
+        map_ekv.put("click", adbean.getAd_name());
+        MobclickAgent.onEvent(context, tag, map_ekv);
 
 
         int type = adbean.getAd_type();
@@ -1252,7 +1988,7 @@ public class AppConfig {
 
                             }
                         })
-                        .setNeutralButton("取消", new DialogInterface.OnClickListener() {
+                        .setNegativeButton("取消", new DialogInterface.OnClickListener() {
 
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
@@ -1329,4 +2065,14 @@ public class AppConfig {
 
     }
 
+    public static boolean isCopyZhikouling() {
+        if (configBean == null)
+            return false;
+        for (String version :
+                configBean.nozhikouling.split(",")) {
+            if (version.equals(versioncode))
+                return false;
+        }
+        return true;
+    }
 }
